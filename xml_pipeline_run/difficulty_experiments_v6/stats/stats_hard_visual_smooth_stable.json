@@ -1,0 +1,167 @@
+{
+  "config": {
+    "solution": "xml_pipeline_run/difficulty_experiments_v6/solution_hard.json",
+    "priority_arm": "ur5e",
+    "headless": false,
+    "sim_steps_per_tick": 1,
+    "hold_steps": 80,
+    "velocity_scale": 0.8,
+    "acceleration_scale": 0.7,
+    "disable_auto_delay": false,
+    "disable_retreat_recovery": false,
+    "max_start_delay": 4000,
+    "delay_coarse_step": 20,
+    "sample_dt": 0.002,
+    "max_total_ticks": 120000,
+    "max_no_progress_ticks": 5000,
+    "disable_anti_oscillation": false,
+    "anti_oscillation_trigger": 900,
+    "anti_oscillation_hold": 80,
+    "anti_oscillation_max_attempts": 3,
+    "retreat_cooldown_ticks": 16,
+    "allow_high_priority_retreat": false,
+    "max_cmd_step": 0.02,
+    "jump_step_threshold": 0.06,
+    "jump_velocity_threshold": 25.0
+  },
+  "trajectory_info": {
+    "ur5e_points": 21150,
+    "fr3_points": 26755,
+    "ur5e_timing": {
+      "motion_time": 40.028620282162294,
+      "hold_time": 2.2399999999999998
+    },
+    "fr3_timing": {
+      "motion_time": 50.89627778559355,
+      "hold_time": 2.56
+    },
+    "target_summary": {
+      "ur5e": {
+        "reached_count": 14,
+        "reached_targets": [
+          "target_left_1",
+          "target_front_2",
+          "target_front_1",
+          "target_top_3",
+          "target_top_4",
+          "target_left_2",
+          "target_front_1",
+          "target_front_2",
+          "target_left_1",
+          "target_left_1",
+          "target_top_3",
+          "target_front_2",
+          "target_front_3",
+          "target_front_4"
+        ],
+        "skipped_count": 1,
+        "skipped_targets": [
+          {
+            "target": "target_right_2",
+            "reason": "ik_infeasible",
+            "reason_cn": "IK不可行"
+          }
+        ]
+      },
+      "fr3": {
+        "reached_count": 16,
+        "reached_targets": [
+          "target_top_2",
+          "target_top_1",
+          "target_right_1",
+          "target_back_1",
+          "target_top_3",
+          "target_top_4",
+          "target_left_2",
+          "target_back_1",
+          "target_right_1",
+          "target_top_1",
+          "target_top_2",
+          "target_back_1",
+          "target_top_4",
+          "target_right_1",
+          "target_back_3",
+          "target_back_4"
+        ],
+        "skipped_count": 0,
+        "skipped_targets": []
+      }
+    }
+  },
+  "execution_stats": {
+    "success": true,
+    "parallel_ticks": 28616,
+    "parallel_makespan_s": 57.232,
+    "serial_makespan_s": 95.806,
+    "ideal_parallel_makespan_s": 53.508,
+    "speedup_vs_serial": 1.673993570030752,
+    "overhead_vs_ideal_parallel_s": 3.7239999999999966,
+    "wait_ticks": {
+      "ur5e": 0,
+      "fr3": 603
+    },
+    "wait_time_s": {
+      "ur5e": 0.0,
+      "fr3": 1.206,
+      "total": 1.206
+    },
+    "mode_counter": {
+      "both_move": 27344,
+      "fr3_wait": 602,
+      "fr3_retreat": 590,
+      "anti_oscillation_triggered": 1,
+      "fr3_forced_wait": 1,
+      "forced_wait_blocked": 79,
+      "done": 1
+    },
+    "jump_summary": {
+      "raw": {
+        "ur5e": {
+          "max_step": 2.8702418807811654,
+          "max_eq_velocity": 1435.1209403905827,
+          "exceed_count": 276
+        },
+        "fr3": {
+          "max_step": 0.0041760001461148555,
+          "max_eq_velocity": 2.0880000730574277,
+          "exceed_count": 0
+        }
+      },
+      "applied": {
+        "ur5e": {
+          "max_step": 0.020000000000000018,
+          "max_eq_velocity": 10.000000000000009,
+          "exceed_count": 0
+        },
+        "fr3": {
+          "max_step": 0.0041760001461148555,
+          "max_eq_velocity": 2.0880000730574277,
+          "exceed_count": 0
+        }
+      },
+      "thresholds": {
+        "jump_step_threshold": 0.06,
+        "jump_velocity_threshold": 25.0
+      }
+    }
+  },
+  "ablation_preview": {},
+  "comparison_rows": [
+    {
+      "method": "execution_actual",
+      "success": 1,
+      "parallel_makespan_s": 57.232,
+      "serial_makespan_s": 95.806,
+      "ideal_parallel_makespan_s": 53.508,
+      "speedup_vs_serial": 1.673993570030752,
+      "overhead_vs_ideal_parallel_s": 3.7239999999999966,
+      "wait_time_total_s": 1.206,
+      "wait_time_ur5e_s": 0.0,
+      "wait_time_fr3_s": 1.206,
+      "wait_ticks_ur5e": 0,
+      "wait_ticks_fr3": 603,
+      "both_move_count": 27344,
+      "deadlock_wait_count": 0
+    }
+  ]
+}

@@ -1,0 +1,127 @@
+{
+  "config": {
+    "solution": "/home/jiangshuo/robot/xml_pipeline_run/difficulty_experiments_v5/solution_hard.json",
+    "priority_arm": "ur5e",
+    "headless": true,
+    "sim_steps_per_tick": 1,
+    "hold_steps": 80,
+    "velocity_scale": 1.0,
+    "acceleration_scale": 1.0,
+    "disable_auto_delay": false,
+    "max_start_delay": 4000,
+    "delay_coarse_step": 20,
+    "sample_dt": 0.002
+  },
+  "trajectory_info": {
+    "ur5e_points": 21284,
+    "fr3_points": 26939,
+    "ur5e_timing": {
+      "motion_time": 39.793073293067124,
+      "hold_time": 2.72
+    },
+    "fr3_timing": {
+      "motion_time": 50.60650253141175,
+      "hold_time": 3.2000000000000006
+    },
+    "target_summary": {
+      "ur5e": {
+        "reached_count": 17,
+        "reached_targets": [
+          "target_left_1",
+          "target_front_2",
+          "target_front_1",
+          "target_top_3",
+          "target_top_4",
+          "target_left_2",
+          "target_front_1",
+          "target_front_2",
+          "target_left_1",
+          "target_left_2",
+          "target_top_4",
+          "target_top_3",
+          "target_left_1",
+          "target_front_2",
+          "target_front_1",
+          "target_front_3",
+          "target_front_4"
+        ],
+        "skipped_count": 1,
+        "skipped_targets": [
+          {
+            "target": "target_right_2",
+            "reason": "insert_collision_risk",
+            "reason_cn": "压入段碰撞风险"
+          }
+        ]
+      },
+      "fr3": {
+        "reached_count": 20,
+        "reached_targets": [
+          "target_top_2",
+          "target_top_1",
+          "target_right_1",
+          "target_back_1",
+          "target_top_3",
+          "target_top_4",
+          "target_left_2",
+          "target_back_1",
+          "target_right_1",
+          "target_top_1",
+          "target_top_2",
+          "target_left_2",
+          "target_top_4",
+          "target_top_3",
+          "target_top_2",
+          "target_top_1",
+          "target_right_1",
+          "target_back_1",
+          "target_back_3",
+          "target_back_4"
+        ],
+        "skipped_count": 0,
+        "skipped_targets": []
+      }
+    }
+  },
+  "execution_stats": {
+    "success": false,
+    "parallel_ticks": 524,
+    "parallel_makespan_s": Infinity,
+    "serial_makespan_s": 96.44200000000001,
+    "ideal_parallel_makespan_s": 53.876,
+    "speedup_vs_serial": 0.0,
+    "overhead_vs_ideal_parallel_s": Infinity,
+    "wait_ticks": {
+      "ur5e": 0,
+      "fr3": 0
+    },
+    "wait_time_s": {
+      "ur5e": 0.0,
+      "fr3": 0.0,
+      "total": 0.0
+    },
+    "mode_counter": {
+      "both_move": 324,
+      "deadlock_wait": 201
+    }
+  },
+  "ablation_preview": {},
+  "comparison_rows": [
+    {
+      "method": "execution_actual",
+      "success": 0,
+      "parallel_makespan_s": Infinity,
+      "serial_makespan_s": 96.44200000000001,
+      "ideal_parallel_makespan_s": 53.876,
+      "speedup_vs_serial": 0.0,
+      "overhead_vs_ideal_parallel_s": Infinity,
+      "wait_time_total_s": 0.0,
+      "wait_time_ur5e_s": 0.0,
+      "wait_time_fr3_s": 0.0,
+      "wait_ticks_ur5e": 0,
+      "wait_ticks_fr3": 0,
+      "both_move_count": 324,
+      "deadlock_wait_count": 201
+    }
+  ]
+}

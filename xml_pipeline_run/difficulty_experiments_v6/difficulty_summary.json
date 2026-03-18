@@ -1,0 +1,35 @@
+[
+  {
+    "case": "easy",
+    "off_success": 0,
+    "off_deadlock_wait": 0,
+    "on_success": 1,
+    "on_speedup": 1.9844586789877139,
+    "on_wait_time_s": 0.08,
+    "act_success": 1,
+    "act_parallel_makespan_s": 19.046,
+    "act_speedup": 1.9844586789877139
+  },
+  {
+    "case": "medium",
+    "off_success": 0,
+    "off_deadlock_wait": 0,
+    "on_success": 1,
+    "on_speedup": 1.7432632061535327,
+    "on_wait_time_s": 0.362,
+    "act_success": 1,
+    "act_parallel_makespan_s": 39.262,
+    "act_speedup": 1.7432632061535327
+  },
+  {
+    "case": "hard",
+    "off_success": 0,
+    "off_deadlock_wait": 0,
+    "on_success": 1,
+    "on_speedup": 1.7232670157068064,
+    "on_wait_time_s": 0.588,
+    "act_success": 1,
+    "act_parallel_makespan_s": 47.75,
+    "act_speedup": 1.7232670157068064
+  }
+]

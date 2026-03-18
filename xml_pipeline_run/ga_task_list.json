@@ -1,0 +1,29 @@
+{
+  "dual_feasible": [
+    "target_top_1",
+    "target_top_2",
+    "target_left_1"
+  ],
+  "ur5e_only": [
+    "target_front_1",
+    "target_front_2"
+  ],
+  "fr3_only": [
+    "target_back_1",
+    "target_right_1"
+  ],
+  "unreachable": [
+    "target_back_2",
+    "target_bottom_1",
+    "target_bottom_2"
+  ],
+  "ga_task_targets": [
+    "target_top_1",
+    "target_top_2",
+    "target_front_1",
+    "target_front_2",
+    "target_back_1",
+    "target_left_1",
+    "target_right_1"
+  ]
+}

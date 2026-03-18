@@ -1,0 +1,207 @@
+{
+  "config": {
+    "solution": "/home/jiangshuo/robot/xml_pipeline_run/difficulty_experiments_v6/solution_medium.json",
+    "priority_arm": "ur5e",
+    "headless": true,
+    "sim_steps_per_tick": 1,
+    "hold_steps": 80,
+    "velocity_scale": 1.0,
+    "acceleration_scale": 1.0,
+    "disable_auto_delay": false,
+    "disable_retreat_recovery": false,
+    "max_start_delay": 4000,
+    "delay_coarse_step": 20,
+    "sample_dt": 0.002,
+    "max_total_ticks": 120000,
+    "max_no_progress_ticks": 4000,
+    "disable_anti_oscillation": false,
+    "anti_oscillation_trigger": 600,
+    "anti_oscillation_hold": 120,
+    "anti_oscillation_max_attempts": 4
+  },
+  "trajectory_info": {
+    "ur5e_points": 14895,
+    "fr3_points": 19329,
+    "ur5e_timing": {
+      "motion_time": 27.993165675577206,
+      "hold_time": 1.7599999999999998
+    },
+    "fr3_timing": {
+      "motion_time": 34.4430291478239,
+      "hold_time": 2.0799999999999996
+    },
+    "target_summary": {
+      "ur5e": {
+        "reached_count": 11,
+        "reached_targets": [
+          "target_left_1",
+          "target_front_2",
+          "target_front_1",
+          "target_top_3",
+          "target_top_4",
+          "target_left_2",
+          "target_front_1",
+          "target_front_2",
+          "target_left_1",
+          "target_front_3",
+          "target_front_4"
+        ],
+        "skipped_count": 1,
+        "skipped_targets": [
+          {
+            "target": "target_right_2",
+            "reason": "ik_infeasible",
+            "reason_cn": "IK不可行"
+          }
+        ]
+      },
+      "fr3": {
+        "reached_count": 13,
+        "reached_targets": [
+          "target_top_2",
+          "target_top_1",
+          "target_right_1",
+          "target_back_1",
+          "target_top_3",
+          "target_top_4",
+          "target_left_2",
+          "target_back_1",
+          "target_right_1",
+          "target_top_1",
+          "target_top_2",
+          "target_back_3",
+          "target_back_4"
+        ],
+        "skipped_count": 0,
+        "skipped_targets": []
+      }
+    }
+  },
+  "execution_stats": {
+    "success": true,
+    "parallel_ticks": 19631,
+    "parallel_makespan_s": 39.262,
+    "serial_makespan_s": 68.444,
+    "ideal_parallel_makespan_s": 38.656,
+    "speedup_vs_serial": 1.7432632061535327,
+    "overhead_vs_ideal_parallel_s": 0.6060000000000016,
+    "wait_ticks": {
+      "ur5e": 0,
+      "fr3": 181
+    },
+    "wait_time_s": {
+      "ur5e": 0.0,
+      "fr3": 0.362,
+      "total": 0.362
+    },
+    "mode_counter": {
+      "both_move": 19367,
+      "fr3_wait": 181,
+      "fr3_retreat": 61,
+      "fr3_moves_to_resolve": 22,
+      "done": 1
+    }
+  },
+  "ablation_preview": {
+    "auto_delay_off": {
+      "success": false,
+      "parallel_ticks": 6728,
+      "parallel_makespan_s": Infinity,
+      "serial_makespan_s": 66.356,
+      "ideal_parallel_makespan_s": 36.568,
+      "speedup_vs_serial": 0.0,
+      "overhead_vs_ideal_parallel_s": Infinity,
+      "wait_ticks": {
+        "ur5e": 0,
+        "fr3": 0
+      },
+      "wait_time_s": {
+        "ur5e": 0.0,
+        "fr3": 0.0,
+        "total": 0.0
+      },
+      "mode_counter": {
+        "both_move": 324,
+        "fr3_retreat": 2963,
+        "fr3_moves_to_resolve": 2962,
+        "anti_oscillation_triggered": 4,
+        "forced_wait_blocked": 480
+      }
+    },
+    "auto_delay_on": {
+      "success": true,
+      "parallel_ticks": 19631,
+      "parallel_makespan_s": 39.262,
+      "serial_makespan_s": 68.444,
+      "ideal_parallel_makespan_s": 38.656,
+      "speedup_vs_serial": 1.7432632061535327,
+      "overhead_vs_ideal_parallel_s": 0.6060000000000016,
+      "wait_ticks": {
+        "ur5e": 0,
+        "fr3": 181
+      },
+      "wait_time_s": {
+        "ur5e": 0.0,
+        "fr3": 0.362,
+        "total": 0.362
+      },
+      "mode_counter": {
+        "both_move": 19367,
+        "fr3_wait": 181,
+        "fr3_retreat": 61,
+        "fr3_moves_to_resolve": 22,
+        "done": 1
+      }
+    }
+  },
+  "comparison_rows": [
+    {
+      "method": "auto_delay_off_preview",
+      "success": 0,
+      "parallel_makespan_s": Infinity,
+      "serial_makespan_s": 66.356,
+      "ideal_parallel_makespan_s": 36.568,
+      "speedup_vs_serial": 0.0,
+      "overhead_vs_ideal_parallel_s": Infinity,
+      "wait_time_total_s": 0.0,
+      "wait_time_ur5e_s": 0.0,
+      "wait_time_fr3_s": 0.0,
+      "wait_ticks_ur5e": 0,
+      "wait_ticks_fr3": 0,
+      "both_move_count": 324,
+      "deadlock_wait_count": 0
+    },
+    {
+      "method": "auto_delay_on_preview",
+      "success": 1,
+      "parallel_makespan_s": 39.262,
+      "serial_makespan_s": 68.444,
+      "ideal_parallel_makespan_s": 38.656,
+      "speedup_vs_serial": 1.7432632061535327,
+      "overhead_vs_ideal_parallel_s": 0.6060000000000016,
+      "wait_time_total_s": 0.362,
+      "wait_time_ur5e_s": 0.0,
+      "wait_time_fr3_s": 0.362,
+      "wait_ticks_ur5e": 0,
+      "wait_ticks_fr3": 181,
+      "both_move_count": 19367,
+      "deadlock_wait_count": 0
+    },
+    {
+      "method": "execution_actual",
+      "success": 1,
+      "parallel_makespan_s": 39.262,
+      "serial_makespan_s": 68.444,
+      "ideal_parallel_makespan_s": 38.656,
+      "speedup_vs_serial": 1.7432632061535327,
+      "overhead_vs_ideal_parallel_s": 0.6060000000000016,
+      "wait_time_total_s": 0.362,
+      "wait_time_ur5e_s": 0.0,
+      "wait_time_fr3_s": 0.362,
+      "wait_ticks_ur5e": 0,
+      "wait_ticks_fr3": 181,
+      "both_move_count": 19367,
+      "deadlock_wait_count": 0
+    }
+  ]
+}

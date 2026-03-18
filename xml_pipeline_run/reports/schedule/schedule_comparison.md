@@ -1,0 +1,5 @@
+| method | success | parallel_makespan_s | serial_makespan_s | ideal_parallel_makespan_s | speedup_vs_serial | overhead_vs_ideal_parallel_s | wait_time_total_s | wait_time_ur5e_s | wait_time_fr3_s | wait_ticks_ur5e | wait_ticks_fr3 | both_move_count | deadlock_wait_count |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| auto_delay_off_preview | 0 | inf | 20.358000 | 11.280000 | 0.000000 | inf | 0.000000 | 0.000000 | 0.000000 | 0 | 0 | 324 | 201 |
+| auto_delay_on_preview | 1 | 11.428000 | 20.486000 | 11.408000 | 1.792615 | 0.020000 | 0.020000 | 0.000000 | 0.020000 | 0 | 10 | 5704 | 0 |
+| execution_actual | 1 | 11.428000 | 20.486000 | 11.408000 | 1.792615 | 0.020000 | 0.020000 | 0.000000 | 0.020000 | 0 | 10 | 5704 | 0 |

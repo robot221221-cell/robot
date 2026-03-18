@@ -1,0 +1,47 @@
+{
+  "selection_policy": "success-first",
+  "selected_at": "2026-03-17",
+  "best_config": {
+    "solution": "xml_pipeline_run/difficulty_experiments_v6/solution_hard.json",
+    "priority_arm": "ur5e",
+    "hold_steps": 80,
+    "sim_steps_per_tick": 1,
+    "velocity_scale": 0.8,
+    "acceleration_scale": 0.7,
+    "max_start_delay": 4000,
+    "delay_coarse_step": 20,
+    "anti_oscillation_trigger": 900,
+    "anti_oscillation_hold": 80,
+    "anti_oscillation_max_attempts": 3,
+    "max_total_ticks": 120000,
+    "max_no_progress_ticks": 5000,
+    "retreat_cooldown_ticks": 16,
+    "max_cmd_step": 0.02,
+    "jump_step_threshold": 0.06,
+    "jump_velocity_threshold": 25.0,
+    "sync_balance_weight": 0.3,
+    "random_seed_recommendation": 46
+  },
+  "evidence": {
+    "lambda_search": [
+      "xml_pipeline_run/difficulty_experiments_v6/final_param_search_stage2/tables/final_param_search_summary.csv",
+      "xml_pipeline_run/difficulty_experiments_v6/final_param_search_stage3/tables/final_param_search_summary.csv"
+    ],
+    "representative_stats": [
+      "xml_pipeline_run/difficulty_experiments_v6/final_param_search_stage3/stats/stats_lambda_0_3_seed_45.json",
+      "xml_pipeline_run/difficulty_experiments_v6/final_param_search_stage3/stats/stats_lambda_0_3_seed_46.json"
+    ],
+    "validation_5seeds": {
+      "summary": "xml_pipeline_run/difficulty_experiments_v6/final_best_validation_5seeds/summary.json",
+      "trials": "xml_pipeline_run/difficulty_experiments_v6/final_best_validation_5seeds/trials.json",
+      "result": {
+        "seeds": [42, 43, 44, 45, 46],
+        "success_rate": 1.0,
+        "avg_parallel_makespan_s_on_success": 57.6852,
+        "avg_speedup_on_success": 1.728148197919916,
+        "avg_deadlock_wait_count": 0.0,
+        "avg_wait_time_total_s": 0.2972
+      }
+    }
+  }
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "lambda": 0.0,
+    "seed": 42,
+    "success": 0.0,
+    "parallel_makespan_s": Infinity,
+    "speedup_vs_serial": 0.0,
+    "deadlock_wait_count": 2085.0,
+    "wait_time_total_s": 0.178,
+    "finish_gap_s": 0.0
+  },
+  {
+    "lambda": 0.0,
+    "seed": 43,
+    "success": 0.0,
+    "parallel_makespan_s": Infinity,
+    "speedup_vs_serial": 0.0,
+    "deadlock_wait_count": 2085.0,
+    "wait_time_total_s": 0.178,
+    "finish_gap_s": 0.0
+  },
+  {
+    "lambda": 0.5,
+    "seed": 42,
+    "success": 1.0,
+    "parallel_makespan_s": 55.624,
+    "speedup_vs_serial": 1.7387818207967785,
+    "deadlock_wait_count": 0.0,
+    "wait_time_total_s": 1.1360000000000001,
+    "finish_gap_s": 0.0
+  },
+  {
+    "lambda": 0.5,
+    "seed": 43,
+    "success": 1.0,
+    "parallel_makespan_s": 57.462,
+    "speedup_vs_serial": 1.734955274790296,
+    "deadlock_wait_count": 0.0,
+    "wait_time_total_s": 0.098,
+    "finish_gap_s": 0.0
+  }
+]

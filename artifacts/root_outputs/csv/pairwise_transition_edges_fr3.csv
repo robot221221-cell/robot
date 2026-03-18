@@ -1,0 +1,10 @@
+arm,source,destination,cost,feasible,reason,retract_cost,transfer_cost,insert_cost
+fr3,home,home,0.0,True,identity,0.0,0.0,0.0
+fr3,home,target_top_1,3.989,True,ok,0.0,2.918,1.071
+fr3,home,target_left_1,3.269,True,ok,0.0,2.702,0.567
+fr3,target_top_1,home,3.989,True,ok,1.071,2.918,0.0
+fr3,target_top_1,target_top_1,inf,False,self_loop_blocked,inf,inf,inf
+fr3,target_top_1,target_left_1,5.69,True,ok,1.071,4.053,0.567
+fr3,target_left_1,home,3.269,True,ok,0.567,2.702,0.0
+fr3,target_left_1,target_top_1,5.69,True,ok,0.567,4.053,1.071
+fr3,target_left_1,target_left_1,inf,False,self_loop_blocked,inf,inf,inf

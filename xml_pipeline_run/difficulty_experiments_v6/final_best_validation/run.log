@@ -1,0 +1,175 @@
+
+[开始] lambda=0.3, seed=42
+[命令] /home/jiangshuo/miniforge3/envs/lerobot/bin/python /home/jiangshuo/robot/schedule_ga_with_priority_delay.py --solution xml_pipeline_run/difficulty_experiments_v6/solution_hard.json --headless --disable-auto-organize --hold-steps 80 --sim-steps-per-tick 1 --priority-arm ur5e --velocity-scale 0.8 --acceleration-scale 0.7 --max-start-delay 4000 --delay-coarse-step 20 --anti-oscillation-trigger 900 --anti-oscillation-hold 80 --anti-oscillation-max-attempts 3 --max-total-ticks 120000 --max-no-progress-ticks 5000 --retreat-cooldown-ticks 16 --max-cmd-step 0.02 --jump-step-threshold 0.06 --jump-velocity-threshold 25.0 --sync-balance-weight 0.3 --random-seed 42 --stats-json xml_pipeline_run/difficulty_experiments_v6/final_best_validation/stats/stats_lambda_0_3_seed_42.json
+已固定随机种子: 42
+============================================================
+初始化异构双臂仿真环境 (带 RRT 避障模块)
+============================================================
+
+========================================================================
+正在构建双臂 TOPP-RA 时间最优轨迹...
+========================================================================
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 汇合！迭代次数: 68, 耗时: 0.03s
+[路径优化] 剪枝完成：原节点数 35 -> 现节点数 3
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 汇合！迭代次数: 49, 耗时: 0.03s
+[路径优化] 剪枝完成：原节点数 44 -> 现节点数 3
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 汇合！迭代次数: 38, 耗时: 0.02s
+[路径优化] 剪枝完成：原节点数 36 -> 现节点数 3
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+⚠️ [UR5E] target_right_2 姿态不可行，已跳过该任务的 TOPP-RA 轨迹构建。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+
+[RRT Planner] 开始进行高维空间防碰撞探路...
+[RRT 成功] 直线路径安全，无需复杂规划。
+UR5e 轨迹点数: 21116
+FR3  轨迹点数: 26795
+统一调度采样周期: 0.0020 s
+UR5e 运动时间: 39.960 s, 保持时间: 2.240 s
+FR3  运动时间: 50.973 s, 保持时间: 2.560 s
+
+------------------------------------------------------------------------
+[UR5E] 目标点执行摘要
+------------------------------------------------------------------------
+到达数量: 14
+到达目标: ['target_left_1', 'target_front_2', 'target_front_1', 'target_top_3', 'target_top_4', 'target_left_2', 'target_front_1', 'target_front_2', 'target_left_1', 'target_left_1', 'target_top_3', 'target_front_2', 'target_front_3', 'target_front_4']
+未到达数量: 1
+- target_right_2: IK不可行 (ik_infeasible)
+
+------------------------------------------------------------------------
+[FR3] 目标点执行摘要
+------------------------------------------------------------------------
+到达数量: 16
+到达目标: ['target_top_2', 'target_top_1', 'target_right_1', 'target_back_1', 'target_top_3', 'target_top_4', 'target_left_2', 'target_back_1', 'target_right_1', 'target_top_1', 'target_top_2', 'target_back_1', 'target_top_4', 'target_right_1', 'target_back_3', 'target_back_4']
+未到达数量: 0
+Traceback (most recent call last):
+  File "/home/jiangshuo/robot/schedule_ga_with_priority_delay.py", line 1545, in <module>
+    main()
+  File "/home/jiangshuo/robot/schedule_ga_with_priority_delay.py", line 1372, in main
+    ur5e_traj, fr3_traj, delay_info = auto_delay_low_priority_trajectory(
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jiangshuo/robot/schedule_ga_with_priority_delay.py", line 696, in auto_delay_low_priority_trajectory
+    preview = dry_run_schedule(
+              ^^^^^^^^^^^^^^^^^
+  File "/home/jiangshuo/robot/schedule_ga_with_priority_delay.py", line 554, in dry_run_schedule
+    next_indices, mode = scheduler.choose_next_indices(indices, trajectories)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jiangshuo/robot/schedule_ga_with_priority_delay.py", line 246, in choose_next_indices
+    if not self.will_conflict(ur_next, fr_next):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jiangshuo/robot/schedule_ga_with_priority_delay.py", line 225, in will_conflict
+    return is_inter_arm_collision(self.model, self.preview_data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jiangshuo/robot/schedule_ga_with_priority_delay.py", line 184, in is_inter_arm_collision
+    b2 = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, model.geom_bodyid[contact.geom2]) or ""
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "/home/jiangshuo/robot/run_final_parameter_search.py", line 295, in <module>
+    main()
+  File "/home/jiangshuo/robot/run_final_parameter_search.py", line 257, in main
+    _run(cmd, tag)
+  File "/home/jiangshuo/robot/run_final_parameter_search.py", line 29, in _run
+    subprocess.run(cmd, check=True)
+  File "/home/jiangshuo/miniforge3/envs/lerobot/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jiangshuo/miniforge3/envs/lerobot/lib/python3.12/subprocess.py", line 1201, in communicate
+    self.wait()
+  File "/home/jiangshuo/miniforge3/envs/lerobot/lib/python3.12/subprocess.py", line 1264, in wait
+    return self._wait(timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jiangshuo/miniforge3/envs/lerobot/lib/python3.12/subprocess.py", line 2053, in _wait
+    (pid, sts) = self._try_wait(0)
+                 ^^^^^^^^^^^^^^^^^
+  File "/home/jiangshuo/miniforge3/envs/lerobot/lib/python3.12/subprocess.py", line 2011, in _try_wait
+    (pid, sts) = os.waitpid(self.pid, wait_flags)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

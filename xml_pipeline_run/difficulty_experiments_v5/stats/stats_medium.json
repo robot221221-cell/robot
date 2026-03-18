@@ -1,0 +1,147 @@
+{
+  "config": {
+    "solution": "/home/jiangshuo/robot/xml_pipeline_run/difficulty_experiments_v5/solution_medium.json",
+    "priority_arm": "ur5e",
+    "headless": true,
+    "sim_steps_per_tick": 1,
+    "hold_steps": 80,
+    "velocity_scale": 1.0,
+    "acceleration_scale": 1.0,
+    "disable_auto_delay": false,
+    "max_start_delay": 4000,
+    "delay_coarse_step": 20,
+    "sample_dt": 0.002
+  },
+  "trajectory_info": {
+    "ur5e_points": 14923,
+    "fr3_points": 19542,
+    "ur5e_timing": {
+      "motion_time": 28.047817506639557,
+      "hold_time": 1.7599999999999998
+    },
+    "fr3_timing": {
+      "motion_time": 34.44470611715667,
+      "hold_time": 2.0799999999999996
+    }
+  },
+  "execution_stats": {
+    "success": true,
+    "parallel_ticks": 19573,
+    "parallel_makespan_s": 39.146,
+    "serial_makespan_s": 68.926,
+    "ideal_parallel_makespan_s": 39.082,
+    "speedup_vs_serial": 1.760741838246564,
+    "overhead_vs_ideal_parallel_s": 0.06400000000000006,
+    "wait_ticks": {
+      "ur5e": 0,
+      "fr3": 32
+    },
+    "wait_time_s": {
+      "ur5e": 0.0,
+      "fr3": 0.064,
+      "total": 0.064
+    },
+    "mode_counter": {
+      "both_move": 19541,
+      "fr3_wait": 32,
+      "done": 1
+    }
+  },
+  "ablation_preview": {
+    "auto_delay_off": {
+      "success": false,
+      "parallel_ticks": 524,
+      "parallel_makespan_s": Infinity,
+      "serial_makespan_s": 66.412,
+      "ideal_parallel_makespan_s": 36.568,
+      "speedup_vs_serial": 0.0,
+      "overhead_vs_ideal_parallel_s": Infinity,
+      "wait_ticks": {
+        "ur5e": 0,
+        "fr3": 0
+      },
+      "wait_time_s": {
+        "ur5e": 0.0,
+        "fr3": 0.0,
+        "total": 0.0
+      },
+      "mode_counter": {
+        "both_move": 324,
+        "deadlock_wait": 201
+      }
+    },
+    "auto_delay_on": {
+      "success": true,
+      "parallel_ticks": 19573,
+      "parallel_makespan_s": 39.146,
+      "serial_makespan_s": 68.926,
+      "ideal_parallel_makespan_s": 39.082,
+      "speedup_vs_serial": 1.760741838246564,
+      "overhead_vs_ideal_parallel_s": 0.06400000000000006,
+      "wait_ticks": {
+        "ur5e": 0,
+        "fr3": 32
+      },
+      "wait_time_s": {
+        "ur5e": 0.0,
+        "fr3": 0.064,
+        "total": 0.064
+      },
+      "mode_counter": {
+        "both_move": 19541,
+        "fr3_wait": 32,
+        "done": 1
+      }
+    }
+  },
+  "comparison_rows": [
+    {
+      "method": "auto_delay_off_preview",
+      "success": 0,
+      "parallel_makespan_s": Infinity,
+      "serial_makespan_s": 66.412,
+      "ideal_parallel_makespan_s": 36.568,
+      "speedup_vs_serial": 0.0,
+      "overhead_vs_ideal_parallel_s": Infinity,
+      "wait_time_total_s": 0.0,
+      "wait_time_ur5e_s": 0.0,
+      "wait_time_fr3_s": 0.0,
+      "wait_ticks_ur5e": 0,
+      "wait_ticks_fr3": 0,
+      "both_move_count": 324,
+      "deadlock_wait_count": 201
+    },
+    {
+      "method": "auto_delay_on_preview",
+      "success": 1,
+      "parallel_makespan_s": 39.146,
+      "serial_makespan_s": 68.926,
+      "ideal_parallel_makespan_s": 39.082,
+      "speedup_vs_serial": 1.760741838246564,
+      "overhead_vs_ideal_parallel_s": 0.06400000000000006,
+      "wait_time_total_s": 0.064,
+      "wait_time_ur5e_s": 0.0,
+      "wait_time_fr3_s": 0.064,
+      "wait_ticks_ur5e": 0,
+      "wait_ticks_fr3": 32,
+      "both_move_count": 19541,
+      "deadlock_wait_count": 0
+    },
+    {
+      "method": "execution_actual",
+      "success": 1,
+      "parallel_makespan_s": 39.146,
+      "serial_makespan_s": 68.926,
+      "ideal_parallel_makespan_s": 39.082,
+      "speedup_vs_serial": 1.760741838246564,
+      "overhead_vs_ideal_parallel_s": 0.06400000000000006,
+      "wait_time_total_s": 0.064,
+      "wait_time_ur5e_s": 0.0,
+      "wait_time_fr3_s": 0.064,
+      "wait_ticks_ur5e": 0,
+      "wait_ticks_fr3": 32,
+      "both_move_count": 19541,
+      "deadlock_wait_count": 0
+    }
+  ]
+}

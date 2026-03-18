@@ -1,0 +1,115 @@
+{
+  "config": {
+    "solution": "/home/jiangshuo/robot/xml_pipeline_run/difficulty_experiments_v5/solution_medium.json",
+    "priority_arm": "ur5e",
+    "headless": false,
+    "sim_steps_per_tick": 1,
+    "hold_steps": 80,
+    "velocity_scale": 1.0,
+    "acceleration_scale": 1.0,
+    "disable_auto_delay": false,
+    "max_start_delay": 4000,
+    "delay_coarse_step": 20,
+    "sample_dt": 0.002
+  },
+  "trajectory_info": {
+    "ur5e_points": 14937,
+    "fr3_points": 18690,
+    "ur5e_timing": {
+      "motion_time": 28.077880131408858,
+      "hold_time": 1.7599999999999998
+    },
+    "fr3_timing": {
+      "motion_time": 34.44302939708929,
+      "hold_time": 2.0799999999999996
+    },
+    "target_summary": {
+      "ur5e": {
+        "reached_count": 11,
+        "reached_targets": [
+          "target_left_1",
+          "target_front_2",
+          "target_front_1",
+          "target_top_3",
+          "target_top_4",
+          "target_left_2",
+          "target_front_1",
+          "target_front_2",
+          "target_left_1",
+          "target_front_3",
+          "target_front_4"
+        ],
+        "skipped_count": 1,
+        "skipped_targets": [
+          {
+            "target": "target_right_2",
+            "reason": "insert_collision_risk",
+            "reason_cn": "压入段碰撞风险"
+          }
+        ]
+      },
+      "fr3": {
+        "reached_count": 13,
+        "reached_targets": [
+          "target_top_2",
+          "target_top_1",
+          "target_right_1",
+          "target_back_1",
+          "target_top_3",
+          "target_top_4",
+          "target_left_2",
+          "target_back_1",
+          "target_right_1",
+          "target_top_1",
+          "target_top_2",
+          "target_back_3",
+          "target_back_4"
+        ],
+        "skipped_count": 0,
+        "skipped_targets": []
+      }
+    }
+  },
+  "execution_stats": {
+    "success": true,
+    "parallel_ticks": 18981,
+    "parallel_makespan_s": 37.962,
+    "serial_makespan_s": 67.25,
+    "ideal_parallel_makespan_s": 37.378,
+    "speedup_vs_serial": 1.7715083504557187,
+    "overhead_vs_ideal_parallel_s": 0.5840000000000032,
+    "wait_ticks": {
+      "ur5e": 0,
+      "fr3": 292
+    },
+    "wait_time_s": {
+      "ur5e": 0.0,
+      "fr3": 0.584,
+      "total": 0.584
+    },
+    "mode_counter": {
+      "both_move": 18689,
+      "fr3_wait": 292,
+      "done": 1
+    }
+  },
+  "ablation_preview": {},
+  "comparison_rows": [
+    {
+      "method": "execution_actual",
+      "success": 1,
+      "parallel_makespan_s": 37.962,
+      "serial_makespan_s": 67.25,
+      "ideal_parallel_makespan_s": 37.378,
+      "speedup_vs_serial": 1.7715083504557187,
+      "overhead_vs_ideal_parallel_s": 0.5840000000000032,
+      "wait_time_total_s": 0.584,
+      "wait_time_ur5e_s": 0.0,
+      "wait_time_fr3_s": 0.584,
+      "wait_ticks_ur5e": 0,
+      "wait_ticks_fr3": 292,
+      "both_move_count": 18689,
+      "deadlock_wait_count": 0
+    }
+  ]
+}

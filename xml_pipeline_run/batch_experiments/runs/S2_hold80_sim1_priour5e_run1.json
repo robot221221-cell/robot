@@ -1,0 +1,145 @@
+{
+  "config": {
+    "solution": "/home/jiangshuo/robot/xml_pipeline_run/ga_best_solution.json",
+    "priority_arm": "ur5e",
+    "headless": true,
+    "sim_steps_per_tick": 1,
+    "hold_steps": 80,
+    "velocity_scale": 1.0,
+    "acceleration_scale": 1.0,
+    "disable_auto_delay": false,
+    "sample_dt": 0.002
+  },
+  "trajectory_info": {
+    "ur5e_points": 4720,
+    "fr3_points": 5945,
+    "ur5e_timing": {
+      "motion_time": 8.94808234596475,
+      "hold_time": 0.48
+    },
+    "fr3_timing": {
+      "motion_time": 11.104424554971867,
+      "hold_time": 0.64
+    }
+  },
+  "execution_stats": {
+    "success": true,
+    "parallel_ticks": 5954,
+    "parallel_makespan_s": 11.908,
+    "serial_makespan_s": 21.326,
+    "ideal_parallel_makespan_s": 11.888,
+    "speedup_vs_serial": 1.7908968760497146,
+    "overhead_vs_ideal_parallel_s": 0.019999999999999574,
+    "wait_ticks": {
+      "ur5e": 0,
+      "fr3": 10
+    },
+    "wait_time_s": {
+      "ur5e": 0.0,
+      "fr3": 0.02,
+      "total": 0.02
+    },
+    "mode_counter": {
+      "both_move": 5944,
+      "fr3_wait": 10,
+      "done": 1
+    }
+  },
+  "ablation_preview": {
+    "auto_delay_off": {
+      "success": false,
+      "parallel_ticks": 524,
+      "parallel_makespan_s": Infinity,
+      "serial_makespan_s": 21.198,
+      "ideal_parallel_makespan_s": 11.76,
+      "speedup_vs_serial": 0.0,
+      "overhead_vs_ideal_parallel_s": Infinity,
+      "wait_ticks": {
+        "ur5e": 0,
+        "fr3": 0
+      },
+      "wait_time_s": {
+        "ur5e": 0.0,
+        "fr3": 0.0,
+        "total": 0.0
+      },
+      "mode_counter": {
+        "both_move": 324,
+        "deadlock_wait": 201
+      }
+    },
+    "auto_delay_on": {
+      "success": true,
+      "parallel_ticks": 5954,
+      "parallel_makespan_s": 11.908,
+      "serial_makespan_s": 21.326,
+      "ideal_parallel_makespan_s": 11.888,
+      "speedup_vs_serial": 1.7908968760497146,
+      "overhead_vs_ideal_parallel_s": 0.019999999999999574,
+      "wait_ticks": {
+        "ur5e": 0,
+        "fr3": 10
+      },
+      "wait_time_s": {
+        "ur5e": 0.0,
+        "fr3": 0.02,
+        "total": 0.02
+      },
+      "mode_counter": {
+        "both_move": 5944,
+        "fr3_wait": 10,
+        "done": 1
+      }
+    }
+  },
+  "comparison_rows": [
+    {
+      "method": "auto_delay_off_preview",
+      "success": 0,
+      "parallel_makespan_s": Infinity,
+      "serial_makespan_s": 21.198,
+      "ideal_parallel_makespan_s": 11.76,
+      "speedup_vs_serial": 0.0,
+      "overhead_vs_ideal_parallel_s": Infinity,
+      "wait_time_total_s": 0.0,
+      "wait_time_ur5e_s": 0.0,
+      "wait_time_fr3_s": 0.0,
+      "wait_ticks_ur5e": 0,
+      "wait_ticks_fr3": 0,
+      "both_move_count": 324,
+      "deadlock_wait_count": 201
+    },
+    {
+      "method": "auto_delay_on_preview",
+      "success": 1,
+      "parallel_makespan_s": 11.908,
+      "serial_makespan_s": 21.326,
+      "ideal_parallel_makespan_s": 11.888,
+      "speedup_vs_serial": 1.7908968760497146,
+      "overhead_vs_ideal_parallel_s": 0.019999999999999574,
+      "wait_time_total_s": 0.02,
+      "wait_time_ur5e_s": 0.0,
+      "wait_time_fr3_s": 0.02,
+      "wait_ticks_ur5e": 0,
+      "wait_ticks_fr3": 10,
+      "both_move_count": 5944,
+      "deadlock_wait_count": 0
+    },
+    {
+      "method": "execution_actual",
+      "success": 1,
+      "parallel_makespan_s": 11.908,
+      "serial_makespan_s": 21.326,
+      "ideal_parallel_makespan_s": 11.888,
+      "speedup_vs_serial": 1.7908968760497146,
+      "overhead_vs_ideal_parallel_s": 0.019999999999999574,
+      "wait_time_total_s": 0.02,
+      "wait_time_ur5e_s": 0.0,
+      "wait_time_fr3_s": 0.02,
+      "wait_ticks_ur5e": 0,
+      "wait_ticks_fr3": 10,
+      "both_move_count": 5944,
+      "deadlock_wait_count": 0
+    }
+  ]
+}

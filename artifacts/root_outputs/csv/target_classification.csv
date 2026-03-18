@@ -1,0 +1,11 @@
+Target,UR5e_Cost,FR3_Cost,Category,FeasibleForGA
+target_top_1,4.47,3.99,dual_feasible,True
+target_top_2,4.61,2.9,dual_feasible,True
+target_front_1,4.93,inf,ur5e_only,True
+target_front_2,5.68,inf,ur5e_only,True
+target_back_1,inf,3.84,fr3_only,True
+target_back_2,inf,inf,unreachable,False
+target_left_1,3.84,3.27,dual_feasible,True
+target_right_1,inf,3.27,fr3_only,True
+target_bottom_1,inf,inf,unreachable,False
+target_bottom_2,inf,inf,unreachable,False

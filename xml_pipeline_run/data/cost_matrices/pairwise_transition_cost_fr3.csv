@@ -1,0 +1,9 @@
+,home,target_top_1,target_top_2,target_front_1,target_front_2,target_back_1,target_left_1,target_right_1
+home,0.0,3.989,2.896,inf,inf,3.842,3.269,3.269
+target_top_1,3.989,inf,2.72,inf,inf,6.493,5.69,4.433
+target_top_2,2.896,2.72,inf,inf,inf,5.441,4.927,3.733
+target_front_1,inf,inf,inf,inf,inf,inf,inf,inf
+target_front_2,inf,inf,inf,inf,inf,inf,inf,inf
+target_back_1,3.842,6.493,5.441,inf,inf,inf,5.908,5.474
+target_left_1,3.269,5.69,4.927,inf,inf,5.908,inf,6.274
+target_right_1,3.269,4.433,3.733,inf,inf,5.474,6.274,inf

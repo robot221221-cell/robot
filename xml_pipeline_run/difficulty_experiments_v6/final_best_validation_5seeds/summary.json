@@ -1,0 +1,16 @@
+{
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "lambda": 0.3,
+  "trials": 5,
+  "success_rate": 1.0,
+  "avg_parallel_makespan_s_on_success": 57.6852,
+  "avg_speedup_on_success": 1.728148197919916,
+  "avg_deadlock_wait_count": 0,
+  "avg_wait_time_total_s": 0.2972
+}

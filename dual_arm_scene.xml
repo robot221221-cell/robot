@@ -1,0 +1,405 @@
+<mujoco model="dual_arm_ur5e_fr3">
+  <!-- 编译器设置 -->
+  <compiler angle="radian" autolimits="true"/>
+  
+  <!-- 积分器设置 -->
+  <option integrator="implicitfast" timestep="0.002"/>
+
+  <!-- 统计信息：设置场景中心和范围 -->
+  <statistic center="0 0 0.5" extent="2"/>
+
+  <!-- 可视化设置 -->
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global azimuth="150" elevation="-30"/>
+  </visual>
+
+  <!-- 资源定义 -->
+  <asset>
+    <!-- 天空盒纹理 -->
+    <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
+    
+    <!-- 地面纹理 -->
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge" 
+             rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" markrgb="0.8 0.8 0.8" width="300" height="300"/>
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
+    
+    <!-- 工作台纹理 -->
+    <material name="table_mat" rgba="0.6 0.4 0.2 1"/>
+    <material name="target_mat" rgba="1 0.2 0.2 0.6"/>
+    
+    <!-- 金属材质 -->
+    <material name="metal_mat" rgba="0.6 0.65 0.7 1" specular="0.8" shininess="0.8"/>
+    <material name="box_mat" rgba="0.2 0.6 0.8 1"/>
+  </asset>
+
+  <!-- UR5e 机械臂配置 (放置在左侧) -->
+  <default>
+    <default class="ur5e">
+      <material specular="0.5" shininess="0.25"/>
+      <joint axis="0 1 0" range="-6.28319 6.28319" armature="0.1"/>
+      <general gaintype="fixed" biastype="affine" ctrlrange="-6.2831 6.2831" 
+               gainprm="2000" biasprm="0 -2000 -400" forcerange="-150 150"/>
+      <default class="size3">
+        <default class="size3_limited">
+          <joint range="-3.1415 3.1415"/>
+          <general ctrlrange="-3.1415 3.1415"/>
+        </default>
+      </default>
+      <default class="size1">
+        <general gainprm="500" biasprm="0 -500 -100" forcerange="-28 28"/>
+      </default>
+      <default class="visual">
+        <geom type="mesh" contype="0" conaffinity="0" group="2"/>
+      </default>
+      <default class="collision">
+        <geom type="capsule" group="3" rgba="1 0 0 0.2"/>
+        <default class="eef_collision">
+          <geom type="cylinder" rgba="1 0 0 0.2"/>
+        </default>
+      </default>
+      <site size="0.02" rgba="1 0 0 1" group="0"/>
+    </default>
+  </default>
+
+  <!-- FR3 机械臂配置 (放置在右侧) -->
+  <default>
+    <default class="fr3">
+      <joint damping="0.21" armature="0.195" frictionloss="1.137"/>
+      <default class="visual_fr3">
+        <geom type="mesh" group="2" contype="0" conaffinity="0"/>
+      </default>
+      <default class="collision_fr3">
+        <geom type="capsule" group="3" condim="3" contype="1" conaffinity="1"/>
+      </default>
+      <site size="0.02" rgba="0 1 0 1" group="0"/>
+    </default>
+  </default>
+
+  <!-- UR5e 网格资源 -->
+  <asset>
+    <material class="ur5e" name="ur5e_black" rgba="0.033 0.033 0.033 1"/>
+    <material class="ur5e" name="ur5e_jointgray" rgba="0.278 0.278 0.278 1"/>
+    <material class="ur5e" name="ur5e_linkgray" rgba="0.82 0.82 0.82 1"/>
+    <material class="ur5e" name="ur5e_urblue" rgba="0.49 0.678 0.8 1"/>
+
+    <mesh file="universal_robots_ur5e/assets/base_0.obj"/>
+    <mesh file="universal_robots_ur5e/assets/base_1.obj"/>
+    <mesh file="universal_robots_ur5e/assets/shoulder_0.obj"/>
+    <mesh file="universal_robots_ur5e/assets/shoulder_1.obj"/>
+    <mesh file="universal_robots_ur5e/assets/shoulder_2.obj"/>
+    <mesh file="universal_robots_ur5e/assets/upperarm_0.obj"/>
+    <mesh file="universal_robots_ur5e/assets/upperarm_1.obj"/>
+    <mesh file="universal_robots_ur5e/assets/upperarm_2.obj"/>
+    <mesh file="universal_robots_ur5e/assets/upperarm_3.obj"/>
+    <mesh file="universal_robots_ur5e/assets/forearm_0.obj"/>
+    <mesh file="universal_robots_ur5e/assets/forearm_1.obj"/>
+    <mesh file="universal_robots_ur5e/assets/forearm_2.obj"/>
+    <mesh file="universal_robots_ur5e/assets/forearm_3.obj"/>
+    <mesh file="universal_robots_ur5e/assets/wrist1_0.obj"/>
+    <mesh file="universal_robots_ur5e/assets/wrist1_1.obj"/>
+    <mesh file="universal_robots_ur5e/assets/wrist1_2.obj"/>
+    <mesh file="universal_robots_ur5e/assets/wrist2_0.obj"/>
+    <mesh file="universal_robots_ur5e/assets/wrist2_1.obj"/>
+    <mesh file="universal_robots_ur5e/assets/wrist2_2.obj"/>
+    <mesh file="universal_robots_ur5e/assets/wrist3.obj"/>
+  </asset>
+
+  <!-- FR3 网格资源 -->
+  <asset>
+    <material name="fr3_black" rgba=".2 .2 .2 1"/>
+    <material name="fr3_white" rgba="1 1 1 1"/>
+    <material name="fr3_red" rgba="1 0.072272 0.039546 1"/>
+    <material name="fr3_gray" rgba="0.863156 0.863156 0.863157 1"/>
+
+    <mesh file="franka_fr3/assets/link0_0.obj"/>
+    <mesh file="franka_fr3/assets/link0_1.obj"/>
+    <mesh file="franka_fr3/assets/link0_2.obj"/>
+    <mesh file="franka_fr3/assets/link0_3.obj"/>
+    <mesh file="franka_fr3/assets/link0_4.obj"/>
+    <mesh file="franka_fr3/assets/link0_5.obj"/>
+    <mesh file="franka_fr3/assets/link0_6.obj"/>
+    <mesh name="link0_coll" file="franka_fr3/assets/link0.stl"/>
+    <mesh file="franka_fr3/assets/link1.obj"/>
+    <mesh file="franka_fr3/assets/link2.obj"/>
+    <mesh file="franka_fr3/assets/link3_0.obj"/>
+    <mesh file="franka_fr3/assets/link3_1.obj"/>
+    <mesh file="franka_fr3/assets/link4_0.obj"/>
+    <mesh file="franka_fr3/assets/link4_1.obj"/>
+    <mesh file="franka_fr3/assets/link5_0.obj"/>
+    <mesh file="franka_fr3/assets/link5_1.obj"/>
+    <mesh file="franka_fr3/assets/link5_2.obj"/>
+    <mesh file="franka_fr3/assets/link6_0.obj"/>
+    <mesh file="franka_fr3/assets/link6_1.obj"/>
+    <mesh file="franka_fr3/assets/link6_2.obj"/>
+    <mesh file="franka_fr3/assets/link6_3.obj"/>
+    <mesh file="franka_fr3/assets/link6_4.obj"/>
+    <mesh file="franka_fr3/assets/link6_5.obj"/>
+    <mesh file="franka_fr3/assets/link6_6.obj"/>
+    <mesh file="franka_fr3/assets/link6_7.obj"/>
+    <mesh file="franka_fr3/assets/link7_0.obj"/>
+    <mesh file="franka_fr3/assets/link7_1.obj"/>
+    <mesh file="franka_fr3/assets/link7_2.obj"/>
+    <mesh file="franka_fr3/assets/link7_3.obj"/>
+  </asset>
+
+  <!-- 世界体定义 -->
+  <worldbody>
+    <!-- 照明 -->
+    <light pos="0 0 2.5" dir="0 0 -1" directional="true"/>
+    <light pos="1 1 2" dir="-1 -1 -1" directional="false"/>
+    
+    <!-- 地面 -->
+    <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
+
+    <!-- 工作台 -->
+    <body name="table" pos="0 0 0">
+      <geom name="table_top" type="box" size="0.8 0.7 0.02" pos="0 0 0.4" material="table_mat"/>
+      <geom name="table_leg1" type="cylinder" size="0.03 0.4" pos="0.7 0.6 0" rgba="0.5 0.3 0.1 1"/>
+      <geom name="table_leg2" type="cylinder" size="0.03 0.4" pos="0.7 -0.6 0" rgba="0.5 0.3 0.1 1"/>
+      <geom name="table_leg3" type="cylinder" size="0.03 0.4" pos="-0.7 0.6 0" rgba="0.5 0.3 0.1 1"/>
+      <geom name="table_leg4" type="cylinder" size="0.03 0.4" pos="-0.7 -0.6 0" rgba="0.5 0.3 0.1 1"/>
+    </body>
+
+    <!-- 中央工件：待作业的多面体刚体 -->
+    <body name="workpiece" pos="0 0 0.85">
+      <geom name="workpiece_geom" type="box" size="0.1 0.1 0.15" material="metal_mat" contype="1" conaffinity="1"/>
+      
+      <geom name="workpiece_support" type="cylinder" size="0.03 0.14" pos="0 0 -0.29" rgba="0.2 0.2 0.2 1" contype="0" conaffinity="0"/>
+      
+      <site name="target_top_1" pos="0.05 0.05 0.15" euler="0 0 0" type="cylinder" size="0.01 0.005" rgba="1 1 0 1" group="0"/>
+      <site name="target_top_2" pos="-0.05 -0.05 0.15" euler="0 0 0" type="cylinder" size="0.01 0.005" rgba="1 1 0 1" group="0"/>
+      <site name="target_top_3" pos="0.0 0.0 0.15" euler="0 0 0" type="cylinder" size="0.01 0.005" rgba="1 0.7 0 1" group="0"/>
+      <site name="target_top_4" pos="0.08 0.0 0.15" euler="0 0 0" type="cylinder" size="0.01 0.005" rgba="1 0.7 0 1" group="0"/>
+      
+      <site name="target_front_1" pos="0.05 0.1 0.05" euler="1.5708 0 0" type="cylinder" size="0.01 0.005" rgba="1 1 0 1" group="0"/>
+      <site name="target_front_2" pos="-0.05 0.1 -0.05" euler="1.5708 0 0" type="cylinder" size="0.01 0.005" rgba="1 1 0 1" group="0"/>
+      <site name="target_front_3" pos="0.0 0.1 0.0" euler="1.5708 0 0" type="cylinder" size="0.01 0.005" rgba="1 0.7 0 1" group="0"/>
+      <site name="target_front_4" pos="0.08 0.1 0.0" euler="1.5708 0 0" type="cylinder" size="0.01 0.005" rgba="1 0.7 0 1" group="0"/>
+      
+      <site name="target_back_1" pos="0.05 -0.1 0.05" euler="-1.5708 0 0" type="cylinder" size="0.01 0.005" rgba="1 1 0 1" group="0"/>
+      <site name="target_back_2" pos="-0.05 -0.1 -0.05" euler="-1.5708 0 0" type="cylinder" size="0.01 0.005" rgba="1 1 0 1" group="0"/>
+      <site name="target_back_3" pos="0.0 -0.1 0.0" euler="-1.5708 0 0" type="cylinder" size="0.01 0.005" rgba="1 0.7 0 1" group="0"/>
+      <site name="target_back_4" pos="-0.08 -0.1 0.0" euler="-1.5708 0 0" type="cylinder" size="0.01 0.005" rgba="1 0.7 0 1" group="0"/>
+
+      <site name="target_left_1" pos="-0.1 0 0" euler="0 -1.5708 0" type="cylinder" size="0.01 0.005" rgba="1 1 0 1" group="0"/>
+      <site name="target_right_1" pos="0.1 0 0" euler="0 -1.5708 0" type="cylinder" size="0.01 0.005" rgba="1 1 0 1" group="0"/>
+      <site name="target_left_2" pos="-0.1 0.06 0.0" euler="0 -1.5708 0" type="cylinder" size="0.01 0.005" rgba="1 0.7 0 1" group="0"/>
+      <site name="target_right_2" pos="0.1 -0.06 0.0" euler="0 -1.5708 0" type="cylinder" size="0.01 0.005" rgba="1 0.7 0 1" group="0"/>
+
+      <site name="target_bottom_1" pos="0.05 0.05 -0.15" euler="3.14159 0 0" type="cylinder" size="0.01 0.005" rgba="1 1 0 1" group="0"/>
+      <site name="target_bottom_2" pos="-0.05 -0.05 -0.15" euler="3.14159 0 0" type="cylinder" size="0.01 0.005" rgba="1 1 0 1" group="0"/>
+    </body>
+
+    <!-- UR5e 机械臂 (左侧，面向工作台中心) -->
+    <body name="ur5e_base" pos="0 0.50 0.42" euler="0 0 -1.5708" childclass="ur5e">
+      <inertial mass="4.0" pos="0 0 0" diaginertia="0.00443333156 0.00443333156 0.0072"/>
+      <geom mesh="base_0" material="ur5e_black" class="visual"/>
+      <geom mesh="base_1" material="ur5e_jointgray" class="visual"/>
+      <body name="ur5e_shoulder_link" pos="0 0 0.163">
+        <inertial mass="3.7" pos="0 0 0" diaginertia="0.0102675 0.0102675 0.00666"/>
+        <joint name="ur5e_shoulder_pan_joint" class="size3" axis="0 0 1"/>
+        <geom mesh="shoulder_0" material="ur5e_urblue" class="visual"/>
+        <geom mesh="shoulder_1" material="ur5e_black" class="visual"/>
+        <geom mesh="shoulder_2" material="ur5e_jointgray" class="visual"/>
+        <geom class="collision" size="0.06 0.06" pos="0 0 -0.04"/>
+        <body name="ur5e_upper_arm_link" pos="0 0.138 0" quat="1 0 1 0">
+          <inertial mass="8.393" pos="0 0 0.2125" diaginertia="0.133886 0.133886 0.0151074"/>
+          <joint name="ur5e_shoulder_lift_joint" class="size3"/>
+          <geom mesh="upperarm_0" material="ur5e_linkgray" class="visual"/>
+          <geom mesh="upperarm_1" material="ur5e_black" class="visual"/>
+          <geom mesh="upperarm_2" material="ur5e_jointgray" class="visual"/>
+          <geom mesh="upperarm_3" material="ur5e_urblue" class="visual"/>
+          <geom class="collision" fromto="0 -0.04 0 0 -0.04 0.425" size="0.05"/>
+          <body name="ur5e_forearm_link" pos="0 -0.131 0.425">
+            <inertial mass="2.275" pos="0 0 0.196" diaginertia="0.0311796 0.0311796 0.004095"/>
+            <joint name="ur5e_elbow_joint" class="size3"/>
+            <geom mesh="forearm_0" material="ur5e_urblue" class="visual"/>
+            <geom mesh="forearm_1" material="ur5e_linkgray" class="visual"/>
+            <geom mesh="forearm_2" material="ur5e_black" class="visual"/>
+            <geom mesh="forearm_3" material="ur5e_jointgray" class="visual"/>
+            <geom class="collision" fromto="0 0.08 0 0 0.08 0.392" size="0.038"/>
+            <body name="ur5e_wrist_1_link" pos="0 0 0.392">
+              <inertial mass="1.219" pos="0 0.127 0" diaginertia="0.0025599 0.0025599 0.0021942"/>
+              <joint name="ur5e_wrist_1_joint" class="size1" axis="0 1 0"/>
+              <geom mesh="wrist1_0" material="ur5e_black" class="visual"/>
+              <geom mesh="wrist1_1" material="ur5e_urblue" class="visual"/>
+              <geom mesh="wrist1_2" material="ur5e_jointgray" class="visual"/>
+              <geom class="collision" pos="0 0.05 0" quat="0.707107 0.707107 0 0" size="0.04 0.07"/>
+              <body name="ur5e_wrist_2_link" pos="0 0.127 0">
+                <inertial mass="1.219" pos="0 0 0.1" diaginertia="0.0025599 0.0025599 0.0021942"/>
+                <joint name="ur5e_wrist_2_joint" class="size1" axis="0 0 1"/>
+                <geom mesh="wrist2_0" material="ur5e_black" class="visual"/>
+                <geom mesh="wrist2_1" material="ur5e_urblue" class="visual"/>
+                <geom mesh="wrist2_2" material="ur5e_jointgray" class="visual"/>
+                <geom class="collision" size="0.04 0.06" pos="0 0 0.04"/>
+                <body name="ur5e_wrist_3_link" pos="0 0 0.1">
+                  <inertial mass="0.1879" pos="0 0.0771683 0" quat="0.707107 0 0 0.707107"
+                    diaginertia="0.000132134 9.90863e-05 9.90863e-05"/>
+                  <joint name="ur5e_wrist_3_joint" class="size1" axis="0 1 0"/>
+                  <geom material="ur5e_linkgray" mesh="wrist3" class="visual"/>
+                  <geom class="eef_collision" pos="0 0.09 0" quat="0.707107 0.707107 0 0" size="0.04 0.02"/>
+                  <site name="ur5e_ee_site" pos="0 0.1 0" euler="-1.5708 0 0" size="0.025" rgba="1 0 0 1" group="0"/>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+
+    <!-- FR3 机械臂 (右侧，面向工作台中心) -->
+    <body name="fr3_base" pos="0 -0.50 0.42" euler="0 0 1.5708" childclass="fr3">
+      <body name="fr3_link0">
+        <geom mesh="link0_0" material="fr3_black" class="visual_fr3"/>
+        <geom mesh="link0_1" material="fr3_white" class="visual_fr3"/>
+        <geom mesh="link0_2" material="fr3_white" class="visual_fr3"/>
+        <geom mesh="link0_3" material="fr3_white" class="visual_fr3"/>
+        <geom mesh="link0_4" material="fr3_white" class="visual_fr3"/>
+        <geom mesh="link0_5" material="fr3_red" class="visual_fr3"/>
+        <geom mesh="link0_6" material="fr3_black" class="visual_fr3"/>
+        <!-- 碰撞胶囊体 -->
+        <geom name="fr3_link0_col" class="collision_fr3" type="capsule" size="0.08" fromto="0 0 0  0 0 0.2" rgba="1 0 0 0.2"/>
+        <body name="fr3_link1" pos="0 0 0.333">
+          <inertial pos="0.000206 -0.00067 0.067048" quat="0.388082 0.653008 -0.647363 0.0882461"
+            mass="4.970684" diaginertia="0.70696 0.70536 0.00954"/>
+          <joint name="fr3_joint1" axis="0 0 1" range="-2.7437 2.7437"/>
+          <geom material="fr3_white" mesh="link1" class="visual_fr3"/>
+          <!-- 碰撞胶囊体 -->
+          <geom name="fr3_link1_col" class="collision_fr3" type="capsule" size="0.06" fromto="0 0 0  0 0 -0.19" rgba="1 0 0 0.2"/>
+          <body name="fr3_link2" quat="1 -1 0 0">
+            <inertial pos="-0.000197 -0.033735 0.028718" quat="0.934982 0.000916 -0.354607 0.00285"
+              mass="0.646926" diaginertia="0.00798 0.00756 0.00135"/>
+            <joint name="fr3_joint2" axis="0 0 1" range="-1.7837 1.7837"/>
+            <geom material="fr3_white" mesh="link2" class="visual_fr3"/>
+            <!-- 碰撞胶囊体 -->
+            <geom name="fr3_link2_col" class="collision_fr3" type="capsule" size="0.06" fromto="0 0 0  0 0.2 0" rgba="1 0 0 0.2"/>
+            <body name="fr3_link3" pos="0 -0.316 0" quat="1 1 0 0">
+              <inertial pos="0.026947 0.029724 -0.069176" quat="0.959011 -0.277741 0.0528642 0.0155736"
+                mass="3.228604" diaginertia="0.0372 0.036 0.00506"/>
+              <joint name="fr3_joint3" axis="0 0 1" range="-2.9007 2.9007"/>
+              <geom mesh="link3_0" material="fr3_white" class="visual_fr3"/>
+              <geom mesh="link3_1" material="fr3_white" class="visual_fr3"/>
+              <!-- 碰撞胶囊体 -->
+              <geom name="fr3_link3_col" class="collision_fr3" type="capsule" size="0.06" fromto="0 0 0  0 0 -0.15" rgba="1 0 0 0.2"/>
+              <body name="fr3_link4" pos="0.0825 0 0" quat="1 1 0 0">
+                <inertial pos="-0.053043 0.104432 0.026687" quat="0.920992 0.380087 -0.0891638 0.00429838"
+                  mass="3.587895" diaginertia="0.0255 0.0252 0.00696"/>
+                <joint name="fr3_joint4" axis="0 0 1" range="-3.0421 -0.1518"/>
+                <geom mesh="link4_0" material="fr3_white" class="visual_fr3"/>
+                <geom mesh="link4_1" material="fr3_white" class="visual_fr3"/>
+                <!-- 碰撞胶囊体 -->
+                <geom name="fr3_link4_col" class="collision_fr3" type="capsule" size="0.06" fromto="0 0 0  0 0.2 0" rgba="1 0 0 0.2"/>
+                <body name="fr3_link5" pos="-0.0825 0.384 0" quat="1 -1 0 0">
+                  <inertial pos="0.000113 0.0448 -0.038482" quat="0.722794 0.003309 0.00406 0.691047"
+                    mass="1.225946" diaginertia="0.0358 0.0348 0.00128"/>
+                  <joint name="fr3_joint5" axis="0 0 1" range="-2.8065 2.8065" damping="0.168" armature="0.156" frictionloss="0.909"/>
+                  <geom mesh="link5_0" material="fr3_white" class="visual_fr3"/>
+                  <geom mesh="link5_1" material="fr3_white" class="visual_fr3"/>
+                  <geom mesh="link5_2" material="fr3_gray" class="visual_fr3"/>
+                  <!-- 碰撞胶囊体 -->
+                  <geom name="fr3_link5_col" class="collision_fr3" type="capsule" size="0.05" fromto="0 0 0  0 0 -0.25" rgba="1 0 0 0.2"/>
+                  <body name="fr3_link6" quat="1 1 0 0">
+                    <inertial pos="0.051019 0.009112 0.010635" quat="0.474046 0.880129 -0.00493805 0.0172025"
+                      mass="1.666555" diaginertia="0.00457 0.00426 0.00313"/>
+                    <joint name="fr3_joint6" axis="0 0 1" range="0.5445 4.5169" damping="0.168" armature="0.156" frictionloss="0.909"/>
+                    <geom mesh="link6_0" material="fr3_white" class="visual_fr3"/>
+                    <geom mesh="link6_1" material="fr3_white" class="visual_fr3"/>
+                    <geom mesh="link6_2" material="fr3_gray" class="visual_fr3"/>
+                    <geom mesh="link6_3" material="fr3_gray" class="visual_fr3"/>
+                    <geom mesh="link6_4" material="fr3_black" class="visual_fr3"/>
+                    <geom mesh="link6_5" material="fr3_white" class="visual_fr3"/>
+                    <geom mesh="link6_6" material="fr3_gray" class="visual_fr3"/>
+                    <geom mesh="link6_7" material="fr3_black" class="visual_fr3"/>
+                    <!-- 碰撞胶囊体 -->
+                    <geom name="fr3_link6_col" class="collision_fr3" type="capsule" size="0.04" fromto="0 0 0  0.088 0 0" rgba="1 0 0 0.2"/>
+                    <body name="fr3_link7" pos="0.088 0 0" quat="1 1 0 0">
+                      <inertial pos="0.010587 0.010588 0.06424" quat="0.704858 0.0571316 0.0571293 0.704858"
+                        mass="0.735522" diaginertia="0.00125 0.00117 0.00116"/>
+                      <joint name="fr3_joint7" axis="0 0 1" range="-3.0159 3.0159" damping="0.084" armature="0.078" frictionloss="0.454"/>
+                      <geom mesh="link7_0" material="fr3_black" class="visual_fr3"/>
+                      <geom mesh="link7_1" material="fr3_black" class="visual_fr3"/>
+                      <geom mesh="link7_2" material="fr3_white" class="visual_fr3"/>
+                      <geom mesh="link7_3" material="fr3_white" class="visual_fr3"/>
+                      <!-- 碰撞胶囊体 -->
+                      <geom name="fr3_link7_col" class="collision_fr3" type="capsule" size="0.04" fromto="0 0 0  0 0 0.1" rgba="1 0 0 0.2"/>
+                      <site name="fr3_ee_site" pos="0 0 0.14" quat="0.92388 0 0 -0.382683" size="0.025" rgba="0 1 0 1" group="0"/>
+                    </body>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+
+  </worldbody>
+
+  <contact>
+    <!-- FR3 相邻/近邻连杆的胶囊体会在默认姿态下发生虚假自碰撞，
+         导致控制器被持续顶住，实际无法跟踪到 IK 目标位。 -->
+    <exclude body1="fr3_link0" body2="fr3_link1"/>
+    <exclude body1="fr3_link0" body2="fr3_link2"/>
+    <exclude body1="fr3_link1" body2="fr3_link2"/>
+    <exclude body1="fr3_link2" body2="fr3_link3"/>
+    <exclude body1="fr3_link3" body2="fr3_link4"/>
+    <exclude body1="fr3_link4" body2="fr3_link5"/>
+    <exclude body1="fr3_link5" body2="fr3_link6"/>
+    <exclude body1="fr3_link5" body2="fr3_link7"/>
+    <exclude body1="fr3_link6" body2="fr3_link7"/>
+  </contact>
+
+  <!-- 执行器定义 -->
+  <actuator>
+    <!-- UR5e 执行器 (统一为position控制) -->
+    <position class="size3" name="ur5e_shoulder_pan" joint="ur5e_shoulder_pan_joint" ctrlrange="-6.2831 6.2831" kp="4500" kv="150"/>
+    <position class="size3" name="ur5e_shoulder_lift" joint="ur5e_shoulder_lift_joint" ctrlrange="-6.2831 6.2831" kp="4500" kv="150"/>
+    <position class="size3" name="ur5e_elbow" joint="ur5e_elbow_joint" ctrlrange="-3.1415 3.1415" kp="3500" kv="100"/>
+    <position class="size1" name="ur5e_wrist_1" joint="ur5e_wrist_1_joint" ctrlrange="-6.2831 6.2831" kp="2000" kv="50"/>
+    <position class="size1" name="ur5e_wrist_2" joint="ur5e_wrist_2_joint" ctrlrange="-6.2831 6.2831" kp="2000" kv="50"/>
+    <position class="size1" name="ur5e_wrist_3" joint="ur5e_wrist_3_joint" ctrlrange="-6.2831 6.2831" kp="2000" kv="50"/>
+
+    <!-- FR3 执行器 (添加阻尼kv) -->
+    <position class="fr3" name="fr3_actuator1" joint="fr3_joint1" ctrlrange="-2.8973 2.8973" kp="7000" kv="220"/>
+    <position class="fr3" name="fr3_actuator2" joint="fr3_joint2" ctrlrange="-1.7628 1.7628" kp="7000" kv="220"/>
+    <position class="fr3" name="fr3_actuator3" joint="fr3_joint3" ctrlrange="-2.8973 2.8973" kp="5500" kv="160"/>
+    <position class="fr3" name="fr3_actuator4" joint="fr3_joint4" ctrlrange="-3.0718 -0.0698" kp="5500" kv="160"/>
+    <position class="fr3" name="fr3_actuator5" joint="fr3_joint5" ctrlrange="-2.8973 2.8973" kp="3000" kv="90"/>
+    <position class="fr3" name="fr3_actuator6" joint="fr3_joint6" ctrlrange="-0.0175 3.7525" kp="3000" kv="90"/>
+    <position class="fr3" name="fr3_actuator7" joint="fr3_joint7" ctrlrange="-2.8973 2.8973" kp="3000" kv="90"/>
+  </actuator>
+
+  <!-- 传感器定义 -->
+  <sensor>
+    <!-- UR5e 关节位置传感器 -->
+    <jointpos name="ur5e_joint1_pos" joint="ur5e_shoulder_pan_joint"/>
+    <jointpos name="ur5e_joint2_pos" joint="ur5e_shoulder_lift_joint"/>
+    <jointpos name="ur5e_joint3_pos" joint="ur5e_elbow_joint"/>
+    <jointpos name="ur5e_joint4_pos" joint="ur5e_wrist_1_joint"/>
+    <jointpos name="ur5e_joint5_pos" joint="ur5e_wrist_2_joint"/>
+    <jointpos name="ur5e_joint6_pos" joint="ur5e_wrist_3_joint"/>
+
+    <!-- FR3 关节位置传感器 -->
+    <jointpos name="fr3_joint1_pos" joint="fr3_joint1"/>
+    <jointpos name="fr3_joint2_pos" joint="fr3_joint2"/>
+    <jointpos name="fr3_joint3_pos" joint="fr3_joint3"/>
+    <jointpos name="fr3_joint4_pos" joint="fr3_joint4"/>
+    <jointpos name="fr3_joint5_pos" joint="fr3_joint5"/>
+    <jointpos name="fr3_joint6_pos" joint="fr3_joint6"/>
+    <jointpos name="fr3_joint7_pos" joint="fr3_joint7"/>
+
+    <!-- 末端执行器位置传感器 -->
+    <framepos name="ur5e_ee_pos" objtype="site" objname="ur5e_ee_site"/>
+    <framepos name="fr3_ee_pos" objtype="site" objname="fr3_ee_site"/>
+  </sensor>
+
+  <!-- 初始关节配置 -->
+  <keyframe>
+    <key name="home" 
+         qpos="0 -1.57 0 -1.57 0 0
+               0 -0.785 0 -2.356 0 1.571 0.785"/>
+  </keyframe>
+
+</mujoco>

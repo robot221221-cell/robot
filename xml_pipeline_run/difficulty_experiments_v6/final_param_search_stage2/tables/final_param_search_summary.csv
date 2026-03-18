@@ -1,0 +1,4 @@
+lambda,trials,success_rate,avg_parallel_makespan_s_on_success,p95_parallel_makespan_s_on_success,avg_speedup_on_success,avg_deadlock_wait_count
+0.3,3,1.0,57.398,59.108000000000004,1.7289687365836592,0.0
+0.5,3,1.0,57.398,59.108000000000004,1.7289687365836592,0.0
+0.7,3,1.0,57.398,59.108000000000004,1.7289687365836592,0.0

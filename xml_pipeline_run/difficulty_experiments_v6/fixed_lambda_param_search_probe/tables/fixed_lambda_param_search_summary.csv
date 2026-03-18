@@ -1,0 +1,2 @@
+lambda_sync,anti_trigger,anti_hold,anti_attempts,max_no_progress_ticks,max_cmd_step,trials,success_rate,avg_parallel_makespan_s_on_success,avg_speedup_on_success,avg_deadlock_wait_count
+0.3,900,80,3,5000,0.02,1,1.0,59.300000000000004,1.7104215851602023,0.0

@@ -1,0 +1,10 @@
+scenario,method,method_cn,runs,success_rate,parallel_makespan_mean_s,speedup_mean,wait_time_total_mean_s,deadlock_wait_mean
+S1_hold20_sim1_priour5e,auto_delay_off_preview,AutoDelay关闭(预览),2,0.0,nan,0.0,0.0,201.0
+S1_hold20_sim1_priour5e,auto_delay_on_preview,AutoDelay开启(预览),2,1.0,11.428,1.7926146307315365,0.02,0.0
+S1_hold20_sim1_priour5e,execution_actual,实际执行,2,1.0,11.428,1.7926146307315365,0.02,0.0
+S2_hold80_sim1_priour5e,auto_delay_off_preview,AutoDelay关闭(预览),2,0.0,nan,0.0,0.0,201.0
+S2_hold80_sim1_priour5e,auto_delay_on_preview,AutoDelay开启(预览),2,1.0,11.908,1.7908968760497146,0.02,0.0
+S2_hold80_sim1_priour5e,execution_actual,实际执行,2,1.0,11.908,1.7908968760497146,0.02,0.0
+S3_hold160_sim1_priour5e,auto_delay_off_preview,AutoDelay关闭(预览),2,0.0,nan,0.0,0.0,201.0
+S3_hold160_sim1_priour5e,auto_delay_on_preview,AutoDelay开启(预览),2,1.0,12.548,1.7888109658909788,0.02,0.0
+S3_hold160_sim1_priour5e,execution_actual,实际执行,2,1.0,12.548,1.7888109658909788,0.02,0.0
