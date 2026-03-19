@@ -323,25 +323,57 @@ def calculate_target_posture(env: DualArmEnvironment, arm_name: str, target_name
     
     joint_ids = env.ur5e_joint_ids if arm_name == 'ur5e' else env.fr3_joint_ids
     original_qpos = np.array([env.data.qpos[jid] for jid in joint_ids])
+
+    def _set_arm_q(q: np.ndarray):
+        for i, jid in enumerate(joint_ids):
+            env.data.qpos[jid] = q[i]
+        mujoco.mj_forward(env.model, env.data)
+
+    def _solve_ik_with_seed(target_p: np.ndarray, target_R: np.ndarray, seed_q: np.ndarray, allow_workpiece_contact: bool = False):
+        _set_arm_q(seed_q)
+        return env.compute_ik(
+            site_name,
+            target_p,
+            target_R,
+            allow_workpiece_contact=allow_workpiece_contact,
+        )
+
+    def _pick_best_by_reference(candidates: List[np.ndarray], q_ref: np.ndarray):
+        if not candidates:
+            return None
+        return min(candidates, key=lambda q: float(np.linalg.norm(np.asarray(q) - q_ref)))
     
     seed_q = good_seed_ur5e if arm_name == 'ur5e' else good_seed_fr3
-    for i, jid in enumerate(joint_ids): env.data.qpos[jid] = seed_q[i]
-    mujoco.mj_forward(env.model, env.data)
-    
-    q_approach = env.compute_ik(site_name, approach_pos, correct_target_mat)
+
+    # 优先使用“当前关节姿态”作为 IK 初值，保证轨迹连续性；
+    # 若失败再回退到经验 good seed，提升可解率。
+    approach_candidates: List[np.ndarray] = []
+    q_try = _solve_ik_with_seed(approach_pos, correct_target_mat, original_qpos, allow_workpiece_contact=False)
+    if q_try is not None:
+        approach_candidates.append(q_try)
+    q_try = _solve_ik_with_seed(approach_pos, correct_target_mat, seed_q, allow_workpiece_contact=False)
+    if q_try is not None:
+        approach_candidates.append(q_try)
+
+    q_approach = _pick_best_by_reference(approach_candidates, original_qpos)
     if q_approach is None:
-        for i, jid in enumerate(joint_ids): env.data.qpos[jid] = original_qpos[i]
-        mujoco.mj_forward(env.model, env.data)
+        _set_arm_q(original_qpos)
         return None, None
+
+    # 压入位姿优先从 approach 解继续求，避免关节翻转；失败再尝试 good seed。
+    target_candidates: List[np.ndarray] = []
+    q_try = _solve_ik_with_seed(target_pos, correct_target_mat, q_approach, allow_workpiece_contact=True)
+    if q_try is not None:
+        target_candidates.append(q_try)
+    q_try = _solve_ik_with_seed(target_pos, correct_target_mat, seed_q, allow_workpiece_contact=True)
+    if q_try is not None:
+        target_candidates.append(q_try)
+
+    q_target = _pick_best_by_reference(target_candidates, q_approach)
+    _set_arm_q(original_qpos)
     
-    for i, jid in enumerate(joint_ids): env.data.qpos[jid] = q_approach[i]
-    mujoco.mj_forward(env.model, env.data)
-    
-    q_target = env.compute_ik(site_name, target_pos, correct_target_mat, allow_workpiece_contact=True)
-    for i, jid in enumerate(joint_ids): env.data.qpos[jid] = original_qpos[i]
-    mujoco.mj_forward(env.model, env.data)
-    
-    if q_target is None: return None, None
+    if q_target is None:
+        return None, None
     
     if not _is_target_pose_contact_safe(env, arm_name, q_target):
         return None, None

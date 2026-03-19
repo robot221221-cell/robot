@@ -137,6 +137,25 @@ def deduplicate_waypoints(path: List[np.ndarray], atol: float = 1e-9) -> List[np
     return cleaned
 
 
+def densify_by_max_joint_step(points: np.ndarray, max_joint_step: float) -> np.ndarray:
+    if points.ndim != 2 or len(points) <= 1 or max_joint_step <= 0:
+        return points
+    out = [points[0].copy()]
+    for i in range(1, len(points)):
+        q0 = points[i - 1]
+        q1 = points[i]
+        delta = np.abs(q1 - q0)
+        step = float(np.max(delta)) if delta.size else 0.0
+        if step <= max_joint_step:
+            out.append(q1.copy())
+            continue
+        n_sub = int(np.ceil(step / max_joint_step))
+        for k in range(1, n_sub + 1):
+            a = k / n_sub
+            out.append(((1.0 - a) * q0 + a * q1).astype(float))
+    return np.asarray(out, dtype=float)
+
+
 def time_parameterize_path(
     path: List[np.ndarray],
     arm_name: str,
@@ -167,13 +186,29 @@ def time_parameterize_path(
 
     duration = float(trajectory.duration)
     if duration <= 1e-12:
-        return [waypoints[0].copy(), waypoints[-1].copy()], 0.0
+        # 极少数情况下 TOPP-RA 返回近零时长，为避免“一帧跨越”引发抽搐，
+        # 使用关节速度上限推导最少采样步数做安全线性插值。
+        q0 = waypoints[0].copy()
+        q1 = waypoints[-1].copy()
+        dq = np.abs(q1 - q0)
+        v_lim = np.maximum(ARM_JOINT_LIMITS[arm_name]["velocity"] * max(velocity_scale, 1e-6), 1e-6)
+        min_steps = int(np.ceil(np.max(dq / (v_lim * max(sample_dt, 1e-6)))))
+        min_steps = max(2, min_steps + 1)
+        alphas = np.linspace(0.0, 1.0, min_steps)
+        safe_segment = [((1.0 - a) * q0 + a * q1).astype(float) for a in alphas]
+        duration_fallback = (min_steps - 1) * sample_dt
+        return safe_segment, float(duration_fallback)
 
     ts = np.arange(0.0, duration, sample_dt, dtype=float)
     if len(ts) == 0 or duration - ts[-1] > 1e-9:
         ts = np.append(ts, duration)
 
     sampled_q = np.asarray(trajectory(ts), dtype=float)
+    # 防止 duration 过小或采样过稀导致单步关节跨越过大：按步长上限二次加密。
+    # 上限依据速度约束推导，并留少量裕度。
+    v_lim = ARM_JOINT_LIMITS[arm_name]["velocity"] * max(velocity_scale, 1e-6)
+    max_step_cap = float(np.max(v_lim) * max(sample_dt, 1e-6) * 1.25)
+    sampled_q = densify_by_max_joint_step(sampled_q, max_joint_step=max_step_cap)
     return [q.copy() for q in sampled_q], duration
 
 
@@ -338,6 +373,17 @@ def prepend_wait_steps(trajectory: List[np.ndarray], q_hold: np.ndarray, wait_st
     return [q_hold.copy() for _ in range(wait_steps)] + [q.copy() for q in trajectory]
 
 
+def get_max_adjacent_step(trajectory: List[np.ndarray]) -> float:
+    if trajectory is None or len(trajectory) < 2:
+        return 0.0
+    max_step = 0.0
+    for i in range(1, len(trajectory)):
+        delta = np.asarray(trajectory[i], dtype=float) - np.asarray(trajectory[i - 1], dtype=float)
+        step = float(np.max(np.abs(delta))) if delta.size else 0.0
+        max_step = max(max_step, step)
+    return max_step
+
+
 def build_time_optimal_trajectory(
     env: DualArmEnvironment,
     arm_name: str,
@@ -357,6 +403,19 @@ def build_time_optimal_trajectory(
     }
     target_records: List[Dict[str, object]] = []
 
+    def _append_segment_with_boundary_check(segment: List[np.ndarray], segment_name: str, target_name: str):
+        if not segment:
+            return
+        if trajectory and len(segment) >= 2:
+            boundary_delta = np.asarray(segment[1], dtype=float) - np.asarray(trajectory[-1], dtype=float)
+            boundary_max = float(np.max(np.abs(boundary_delta))) if boundary_delta.size else 0.0
+            if boundary_max > 0.25:
+                print(
+                    f"⚠️ [{arm_name.upper()}] 轨迹段边界跳变偏大: target={target_name}, "
+                    f"segment={segment_name}, boundary_max={boundary_max:.4f} rad"
+                )
+        append_segment(trajectory, segment)
+
     for target in sequence:
         env.reset(ARM_HOME_Q["ur5e"], ARM_HOME_Q["fr3"])
         q_approach, q_target = calculate_target_posture(env, arm_name, target)
@@ -375,6 +434,21 @@ def build_time_optimal_trajectory(
                 "target": target,
                 "status": "skipped",
                 "reason": "insert_collision_risk",
+            })
+            continue
+
+        # 压入段本应是短程局部动作，若关节差突增通常意味着 IK 分支翻转。
+        insert_max_delta = float(np.max(np.abs(np.asarray(q_target) - np.asarray(q_approach))))
+        if insert_max_delta > 1.2:
+            print(
+                f"⚠️ [{arm_name.upper()}] {target} 疑似关节翻转: "
+                f"insert_max_delta={insert_max_delta:.3f} rad，已跳过。"
+            )
+            target_records.append({
+                "target": target,
+                "status": "skipped",
+                "reason": "ik_joint_flip_suspected",
+                "insert_max_delta_rad": insert_max_delta,
             })
             continue
 
@@ -410,10 +484,10 @@ def build_time_optimal_trajectory(
             acceleration_scale=acceleration_scale,
         )
 
-        append_segment(trajectory, approach_segment)
-        append_segment(trajectory, insert_segment)
+        _append_segment_with_boundary_check(approach_segment, "approach", target)
+        _append_segment_with_boundary_check(insert_segment, "insert", target)
         append_hold_segment(trajectory, q_target, hold_steps)
-        append_segment(trajectory, retract_segment)
+        _append_segment_with_boundary_check(retract_segment, "retract", target)
         timing["motion_time"] += approach_duration + insert_duration + retract_duration
         timing["hold_time"] += hold_steps * sample_dt
         current_q = q_approach.copy()
@@ -433,22 +507,56 @@ def build_time_optimal_trajectory(
                 velocity_scale=velocity_scale,
                 acceleration_scale=acceleration_scale,
             )
-            append_segment(trajectory, home_segment)
+            _append_segment_with_boundary_check(home_segment, "return_home", "__return_home__")
             timing["motion_time"] += home_duration
         else:
-            trajectory.append(ARM_HOME_Q[arm_name].copy())
+            # 严禁“硬塞 Home 点”导致下一帧跨空间瞬移。
+            # 先尝试直连边碰撞校验，若可行再时间参数化；否则保持当前位置并记录失败。
+            if planner._is_edge_collision_free(current_q, ARM_HOME_Q[arm_name].copy(), allow_workpiece_contact=False):
+                home_segment, home_duration = time_parameterize_path(
+                    [current_q.copy(), ARM_HOME_Q[arm_name].copy()],
+                    arm_name,
+                    sample_dt=sample_dt,
+                    velocity_scale=velocity_scale,
+                    acceleration_scale=acceleration_scale,
+                )
+                _append_segment_with_boundary_check(home_segment, "return_home_fallback", "__return_home__")
+                timing["motion_time"] += home_duration
+                target_records.append({
+                    "target": "__return_home__",
+                    "status": "reached",
+                    "reason": "home_return_fallback_direct",
+                })
+            else:
+                print(f"⚠️ [{arm_name.upper()}] 回 Home 规划失败且直连不可行，保留末姿态，避免瞬移。")
+                target_records.append({
+                    "target": "__return_home__",
+                    "status": "skipped",
+                    "reason": "home_return_plan_failed",
+                })
+
+    max_adj_step = get_max_adjacent_step(trajectory)
+    timing["max_adjacent_joint_step_rad"] = max_adj_step
+    if max_adj_step > 0.25:
+        print(
+            f"⚠️ [{arm_name.upper()}] 轨迹离散跳变较大: max_adjacent_joint_step={max_adj_step:.4f} rad，"
+            "建议检查 IK 连续性与路径规划失败回退。"
+        )
 
     return trajectory, timing, target_records
 
 
 def summarize_target_records(arm_name: str, records: List[Dict[str, object]]) -> Dict[str, object]:
-    reached = [r["target"] for r in records if r.get("status") == "reached"]
-    skipped = [r for r in records if r.get("status") == "skipped"]
+    valid_records = [r for r in records if not str(r.get("target", "")).startswith("__")]
+    reached = [r["target"] for r in valid_records if r.get("status") == "reached"]
+    skipped = [r for r in valid_records if r.get("status") == "skipped"]
 
     skip_reason_cn = {
         "ik_infeasible": "IK不可行",
         "insert_collision_risk": "压入段碰撞风险",
+        "ik_joint_flip_suspected": "疑似关节翻转(压入段关节差过大)",
         "approach_plan_failed": "接近段规划失败",
+        "home_return_plan_failed": "回Home规划失败(未强制回零)",
     }
     skipped_detail = [
         {
@@ -1284,6 +1392,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+    t_main_start = time.perf_counter()
     if args.random_seed >= 0:
         np.random.seed(args.random_seed)
         random.seed(args.random_seed)
@@ -1312,9 +1421,17 @@ def main():
     env.reset(ARM_HOME_Q["ur5e"], ARM_HOME_Q["fr3"])
     sample_dt = env.model.opt.timestep * args.sim_steps_per_tick
 
+    runtime_profile = {
+        "planning_wall_time_s": 0.0,
+        "scheduling_preview_wall_time_s": 0.0,
+        "execution_wall_time_s": 0.0,
+        "total_wall_time_s": 0.0,
+    }
+
     print("\n" + "=" * 72)
     print("正在构建双臂 TOPP-RA 时间最优轨迹...")
     print("=" * 72)
+    t_planning_start = time.perf_counter()
     ur5e_traj, ur5e_timing, ur5e_target_records = build_time_optimal_trajectory(
         env,
         "ur5e",
@@ -1333,6 +1450,7 @@ def main():
         velocity_scale=args.velocity_scale,
         acceleration_scale=args.acceleration_scale,
     )
+    runtime_profile["planning_wall_time_s"] = float(time.perf_counter() - t_planning_start)
     print(f"UR5e 轨迹点数: {len(ur5e_traj)}")
     print(f"FR3  轨迹点数: {len(fr3_traj)}")
     print(f"统一调度采样周期: {sample_dt:.4f} s")
@@ -1347,6 +1465,7 @@ def main():
     enable_retreat_recovery = not args.disable_retreat_recovery
 
     if args.report_ablation:
+        t_preview_one = time.perf_counter()
         preview_off = dry_run_schedule(
             env,
             raw_ur5e_traj,
@@ -1362,6 +1481,7 @@ def main():
             retreat_cooldown_ticks=args.retreat_cooldown_ticks,
             allow_high_priority_retreat=args.allow_high_priority_retreat,
         )
+        runtime_profile["scheduling_preview_wall_time_s"] += float(time.perf_counter() - t_preview_one)
         stats_off = summarize_schedule_result(preview_off, raw_ur5e_traj, raw_fr3_traj, sample_dt)
         ablation_stats["auto_delay_off"] = stats_off
         print_stats("[消融对比] auto-delay 关闭（预览）", stats_off)
@@ -1369,6 +1489,7 @@ def main():
     if args.disable_auto_delay:
         print("已禁用自动起始延迟：将直接使用原始双臂 TOPP-RA 轨迹并行执行。")
     else:
+        t_preview_auto_delay = time.perf_counter()
         ur5e_traj, fr3_traj, delay_info = auto_delay_low_priority_trajectory(
             env,
             ur5e_traj,
@@ -1387,6 +1508,7 @@ def main():
             allow_high_priority_retreat=args.allow_high_priority_retreat,
             sync_balance_weight=args.sync_balance_weight,
         )
+        runtime_profile["scheduling_preview_wall_time_s"] += float(time.perf_counter() - t_preview_auto_delay)
         if delay_info.get("applied"):
             delay_time = delay_info["delay_steps"] * sample_dt
             print(
@@ -1410,6 +1532,7 @@ def main():
             print(f"⚠️ {delay_info['warning']}")
 
     if args.report_ablation:
+        t_preview_two = time.perf_counter()
         preview_on = dry_run_schedule(
             env,
             ur5e_traj,
@@ -1425,6 +1548,7 @@ def main():
             retreat_cooldown_ticks=args.retreat_cooldown_ticks,
             allow_high_priority_retreat=args.allow_high_priority_retreat,
         )
+        runtime_profile["scheduling_preview_wall_time_s"] += float(time.perf_counter() - t_preview_two)
         stats_on = summarize_schedule_result(preview_on, ur5e_traj, fr3_traj, sample_dt)
         ablation_stats["auto_delay_on"] = stats_on
         print_stats("[消融对比] auto-delay 开启（预览）", stats_on)
@@ -1441,6 +1565,7 @@ def main():
         print(f"开始执行 TOPP-RA 并行时间调度，优先级: {args.priority_arm.upper()}")
         print("并行驱动说明：每个物理步都同时调用 env.step(ur5e_cmd, fr3_cmd)。")
         print("=" * 72)
+        t_exec_start = time.perf_counter()
         run_result = simulate_synchronized_execution(
             env,
             viewer,
@@ -1464,6 +1589,8 @@ def main():
             jump_step_threshold=args.jump_step_threshold,
             jump_velocity_threshold=args.jump_velocity_threshold,
         )
+        runtime_profile["execution_wall_time_s"] = float(time.perf_counter() - t_exec_start)
+        runtime_profile["total_wall_time_s"] = float(time.perf_counter() - t_main_start)
 
         print("\n✅ 第一版并行调度执行结束！")
         print(f"总调度 tick: {run_result['tick']}")
@@ -1522,6 +1649,7 @@ def main():
                         "fr3": fr3_target_summary,
                     },
                 },
+                "runtime_profile": runtime_profile,
                 "execution_stats": final_stats,
                 "ablation_preview": ablation_stats,
                 "comparison_rows": comparison_rows,

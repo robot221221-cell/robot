@@ -124,7 +124,18 @@ class BiRRTPlanner:
                     
                     if np.linalg.norm(new_start.q - new_goal.q) < 1e-4:
                         print(f"[RRT 成功] 汇合！迭代次数: {i}, 耗时: {time.time()-start_time:.2f}s")
-                        return self._extract_path(new_start, new_goal)
+                        path = self._extract_path(new_start, new_goal)
+                        if path is None or len(path) < 2:
+                            return path
+                        # 双树每轮会交换，汇合时路径方向可能是 goal->start。
+                        # 这里统一校正为 start->goal，避免上层拼接产生大跳变。
+                        d_forward = np.linalg.norm(path[0] - q_start) + np.linalg.norm(path[-1] - q_goal)
+                        d_reverse = np.linalg.norm(path[0] - q_goal) + np.linalg.norm(path[-1] - q_start)
+                        if d_reverse < d_forward:
+                            path = list(reversed(path))
+                        path[0] = q_start.copy()
+                        path[-1] = q_goal.copy()
+                        return path
             tree_start, tree_goal = tree_goal, tree_start
             
         print("[RRT 失败] 超过最大迭代次数，未找到安全路径。")
@@ -145,9 +156,6 @@ class BiRRTPlanner:
             curr = curr.parent
             
         raw_path = path_start + path_goal
-        if np.linalg.norm(raw_path[0] - node_start_tree.q) > 0.1: 
-             if np.linalg.norm(raw_path[-1] - node_start_tree.q) > 0.1: pass 
-             else: raw_path.reverse()
         return self._smooth_path(raw_path)
 
     def _smooth_path(self, path: list) -> list:

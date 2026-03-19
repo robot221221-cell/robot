@@ -28,7 +28,7 @@
 
 ## 3) 最重要命令（直接可用）
 
-### 3.1 最优配置可视化（hard）
+### 3.1 最优配置可视化（hard，motionfix 版本）
 ```bash
 conda run -n lerobot python schedule_ga_with_priority_delay.py \
   --solution xml_pipeline_run/difficulty_experiments_v6/solution_hard.json \
@@ -39,11 +39,11 @@ conda run -n lerobot python schedule_ga_with_priority_delay.py \
   --max-total-ticks 120000 --max-no-progress-ticks 5000 \
   --retreat-cooldown-ticks 16 --max-cmd-step 0.02 \
   --jump-step-threshold 0.06 --jump-velocity-threshold 25 \
-  --sync-balance-weight 0.3 --random-seed 46 \
-  --stats-json xml_pipeline_run/difficulty_experiments_v6/stats/stats_hard_visual_best.json
+  --sync-balance-weight 0.3 --random-seed 42 \
+  --stats-json xml_pipeline_run/difficulty_experiments_v6/stats/stats_hard_visual_motionfix.json
 ```
 
-### 3.2 最优配置 headless 复现（hard）
+### 3.2 最优配置 headless 复现（hard，motionfix 版本）
 ```bash
 conda run -n lerobot python schedule_ga_with_priority_delay.py \
   --solution xml_pipeline_run/difficulty_experiments_v6/solution_hard.json \
@@ -55,8 +55,8 @@ conda run -n lerobot python schedule_ga_with_priority_delay.py \
   --max-total-ticks 120000 --max-no-progress-ticks 5000 \
   --retreat-cooldown-ticks 16 --max-cmd-step 0.02 \
   --jump-step-threshold 0.06 --jump-velocity-threshold 25 \
-  --sync-balance-weight 0.3 --random-seed 46 \
-  --stats-json xml_pipeline_run/difficulty_experiments_v6/stats/stats_hard_best_config.json
+  --sync-balance-weight 0.3 --random-seed 42 \
+  --stats-json xml_pipeline_run/difficulty_experiments_v6/stats/stats_hard_headless_motionfix.json
 ```
 
 ### 3.3 同步/非同步对比（可选）
