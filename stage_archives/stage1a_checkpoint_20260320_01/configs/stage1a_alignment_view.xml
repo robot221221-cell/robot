@@ -1,0 +1,35 @@
+<mujoco model="stage1a_alignment_view">
+  <compiler angle="radian"/>
+  <option timestep="0.002" integrator="implicitfast"/>
+
+  <visual>
+    <global azimuth="140" elevation="-20"/>
+    <headlight ambient="0.35 0.35 0.35" diffuse="0.65 0.65 0.65" specular="0.1 0.1 0.1"/>
+  </visual>
+
+  <asset>
+    <material name="orig_blue" rgba="0.2 0.45 1.0 1"/>
+    <material name="vhacd_red" rgba="1 0 0 0.30"/>
+
+    <mesh name="ur5e_wrist3_orig" file="universal_robots_ur5e/assets/wrist3.obj"/>
+    <mesh name="ur5e_wrist3_vhacd" file="universal_robots_ur5e/assets/wrist3_vhacd.obj"/>
+
+    <mesh name="fr3_link7_orig" file="franka_fr3/assets/link7.obj"/>
+    <mesh name="fr3_link7_vhacd" file="franka_fr3/assets/link7_vhacd.obj"/>
+  </asset>
+
+  <worldbody>
+    <light pos="0 0 2" dir="0 0 -1" directional="true"/>
+    <geom type="plane" size="1 1 0.05" rgba="0.9 0.9 0.9 1"/>
+
+    <body name="ur5e_wrist3_demo" pos="-0.20 0 0.15">
+      <geom name="ur5e_wrist3_visual" type="mesh" mesh="ur5e_wrist3_orig" material="orig_blue" contype="0" conaffinity="0"/>
+      <geom name="ur5e_wrist3_vhacd_overlay" type="mesh" mesh="ur5e_wrist3_vhacd" material="vhacd_red" group="3"/>
+    </body>
+
+    <body name="fr3_link7_demo" pos="0.22 0 0.15">
+      <geom name="fr3_link7_visual" type="mesh" mesh="fr3_link7_orig" material="orig_blue" contype="0" conaffinity="0"/>
+      <geom name="fr3_link7_vhacd_overlay" type="mesh" mesh="fr3_link7_vhacd" material="vhacd_red" group="3"/>
+    </body>
+  </worldbody>
+</mujoco>

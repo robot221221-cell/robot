@@ -1,0 +1,51 @@
+{
+  "stage": "Stage-1A",
+  "method": "pybullet.vhacd",
+  "workspace": "/home/jiangshuo/robot",
+  "results": [
+    {
+      "source": "/home/jiangshuo/robot/universal_robots_ur5e/assets/wrist3.obj",
+      "output": "/home/jiangshuo/robot/universal_robots_ur5e/assets/wrist3_vhacd.obj",
+      "log": "/home/jiangshuo/robot/universal_robots_ur5e/assets/wrist3_vhacd.log",
+      "exists_source": true,
+      "success": true,
+      "resolution": 1000000,
+      "concavity": 0.0025,
+      "max_num_vertices_per_ch": 64,
+      "min_volume_per_ch": 1e-05
+    },
+    {
+      "source": "/home/jiangshuo/robot/franka_fr3/assets/link7.obj",
+      "output": "/home/jiangshuo/robot/franka_fr3/assets/link7_vhacd.obj",
+      "log": "/home/jiangshuo/robot/franka_fr3/assets/link7_vhacd.log",
+      "exists_source": true,
+      "success": true,
+      "resolution": 1000000,
+      "concavity": 0.0025,
+      "max_num_vertices_per_ch": 64,
+      "min_volume_per_ch": 1e-05
+    },
+    {
+      "source": "/home/jiangshuo/robot/franka_fr3/assets/hand.obj",
+      "output": "/home/jiangshuo/robot/franka_fr3/assets/hand_vhacd.obj",
+      "log": "/home/jiangshuo/robot/franka_fr3/assets/hand_vhacd.log",
+      "exists_source": false,
+      "success": false,
+      "resolution": 1000000,
+      "concavity": 0.0025,
+      "max_num_vertices_per_ch": 64,
+      "min_volume_per_ch": 1e-05
+    },
+    {
+      "source": "/home/jiangshuo/robot/franka_fr3/assets/finger.obj",
+      "output": "/home/jiangshuo/robot/franka_fr3/assets/finger_vhacd.obj",
+      "log": "/home/jiangshuo/robot/franka_fr3/assets/finger_vhacd.log",
+      "exists_source": false,
+      "success": false,
+      "resolution": 1000000,
+      "concavity": 0.0025,
+      "max_num_vertices_per_ch": 64,
+      "min_volume_per_ch": 1e-05
+    }
+  ]
+}

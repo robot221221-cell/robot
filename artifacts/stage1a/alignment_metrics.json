@@ -1,0 +1,54 @@
+{
+  "stage": "Stage-1A",
+  "type": "alignment_numeric_validation",
+  "xml": "/home/jiangshuo/robot/stage1a_alignment_view.xml",
+  "checks": [
+    {
+      "pair": "UR5e wrist3",
+      "orig_mesh": "ur5e_wrist3_orig",
+      "vhacd_mesh": "ur5e_wrist3_vhacd",
+      "pos_diff_norm": 0.04234514279148261,
+      "quat_angle_rad": 1.588266404838709,
+      "correction_geom_pos": [
+        0.015085742992589963,
+        0.03953930472362857,
+        0.0652895903352788
+      ],
+      "correction_geom_quat": [
+        0.7009032781339462,
+        -0.7042820487354431,
+        0.08011619558348379,
+        0.07939008587553195
+      ],
+      "corrected_pos_diff_norm": 1.5213315396752656e-18,
+      "corrected_quat_angle_rad": 0.0,
+      "pass_threshold": true
+    },
+    {
+      "pair": "FR3 link7",
+      "orig_mesh": "fr3_link7_orig",
+      "vhacd_mesh": "fr3_link7_vhacd",
+      "pos_diff_norm": 0.06411787444040612,
+      "quat_angle_rad": 0.9502037824935841,
+      "correction_geom_pos": [
+        0.05928023232552594,
+        0.05932396757736727,
+        0.03289127408827024
+      ],
+      "correction_geom_quat": [
+        0.8892461182224186,
+        0.21503802401453678,
+        -0.08275828871416033,
+        -0.39515953120655917
+      ],
+      "corrected_pos_diff_norm": 0.0,
+      "corrected_quat_angle_rad": 0.0,
+      "pass_threshold": true
+    }
+  ],
+  "all_pass": true,
+  "threshold": {
+    "pos_diff_norm_max": 1e-05,
+    "quat_angle_rad_max": 1e-05
+  }
+}
