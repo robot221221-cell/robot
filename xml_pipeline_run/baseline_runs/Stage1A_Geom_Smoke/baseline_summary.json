@@ -1,0 +1,59 @@
+{
+  "summary": [
+    {
+      "difficulty": "easy",
+      "n": 1,
+      "success_count": 1,
+      "success_rate": 1.0,
+      "parallel_makespan_mean": 23.312,
+      "parallel_makespan_sd": 0.0,
+      "speedup_mean": 1.9684282772820862,
+      "speedup_sd": 0.0,
+      "deadlock_wait_mean": 0.0,
+      "deadlock_wait_sd": 0.0,
+      "wait_time_mean": 0.036000000000000004,
+      "wait_time_sd": 0.0,
+      "planning_wall_mean": 3.0122727600100916,
+      "planning_wall_sd": 0.0,
+      "preview_wall_mean": 143.42894199999864,
+      "preview_wall_sd": 0.0,
+      "execution_wall_mean": 1.5511699329945259,
+      "execution_wall_sd": 0.0,
+      "total_wall_mean": 148.2752688920009,
+      "total_wall_sd": 0.0,
+      "rrt_nodes_mean_ur5e": 2.0,
+      "rrt_nodes_sd_ur5e": 0.0,
+      "rrt_nodes_mean_fr3": 2.0,
+      "rrt_nodes_sd_fr3": 0.0,
+      "rrt_iter_mean_ur5e": 0.0,
+      "rrt_iter_sd_ur5e": 0.0,
+      "rrt_iter_mean_fr3": 0.0,
+      "rrt_iter_sd_fr3": 0.0
+    }
+  ],
+  "trials": [
+    {
+      "difficulty": "easy",
+      "seed": 42,
+      "returncode": 0,
+      "success": 1,
+      "parallel_makespan_s": 23.312,
+      "speedup_vs_serial": 1.9684282772820862,
+      "deadlock_wait_count": 0,
+      "wait_time_total_s": 0.036000000000000004,
+      "finish_gap_s": NaN,
+      "planning_wall_time_s": 3.0122727600100916,
+      "scheduling_preview_wall_time_s": 143.42894199999864,
+      "execution_wall_time_s": 1.5511699329945259,
+      "total_wall_time_s": 148.2752688920009,
+      "rrt_nodes_mean_ur5e": 2.0,
+      "rrt_nodes_mean_fr3": 2.0,
+      "rrt_iterations_mean_ur5e": 0.0,
+      "rrt_iterations_mean_fr3": 0.0,
+      "rrt_nodes_max_ur5e": 2,
+      "rrt_nodes_max_fr3": 2,
+      "stats_json": "xml_pipeline_run/baseline_runs/Stage1A_Geom_Smoke/raw_stats/stats_easy_seed_42.json",
+      "log_file": "xml_pipeline_run/baseline_runs/Stage1A_Geom_Smoke/logs/run_easy_seed_42.log"
+    }
+  ]
+}
