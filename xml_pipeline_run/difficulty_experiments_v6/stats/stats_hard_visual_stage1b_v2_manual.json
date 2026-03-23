@@ -1,0 +1,202 @@
+{
+  "config": {
+    "solution": "xml_pipeline_run/difficulty_experiments_v6/solution_hard.json",
+    "priority_arm": "ur5e",
+    "headless": false,
+    "sim_steps_per_tick": 1,
+    "hold_steps": 80,
+    "velocity_scale": 0.8,
+    "acceleration_scale": 0.7,
+    "disable_auto_delay": false,
+    "disable_retreat_recovery": false,
+    "max_start_delay": 4000,
+    "delay_coarse_step": 20,
+    "sample_dt": 0.002,
+    "max_total_ticks": 120000,
+    "max_no_progress_ticks": 5000,
+    "disable_anti_oscillation": false,
+    "anti_oscillation_trigger": 900,
+    "anti_oscillation_hold": 80,
+    "anti_oscillation_max_attempts": 3,
+    "retreat_cooldown_ticks": 16,
+    "allow_high_priority_retreat": false,
+    "max_cmd_step": 0.02,
+    "jump_step_threshold": 0.06,
+    "jump_velocity_threshold": 25.0,
+    "sync_balance_weight": 0.3,
+    "enable_distance_lod": true,
+    "lod_distance_in": 0.22,
+    "lod_distance_out": 0.3,
+    "lod_check_interval": 5,
+    "random_seed": 42
+  },
+  "trajectory_info": {
+    "ur5e_points": 21089,
+    "fr3_points": 27352,
+    "ur5e_timing": {
+      "motion_time": 39.89903900934378,
+      "hold_time": 2.2399999999999998,
+      "rrt_plan_calls": 15,
+      "rrt_success_calls": 15,
+      "rrt_direct_calls": 14,
+      "rrt_iterations_sum": 36,
+      "rrt_nodes_sum": 86,
+      "rrt_nodes_max": 58,
+      "max_adjacent_joint_step_rad": 0.005068004484399369,
+      "rrt_iterations_mean": 2.4,
+      "rrt_nodes_mean": 5.733333333333333
+    },
+    "fr3_timing": {
+      "motion_time": 50.97516972492908,
+      "hold_time": 2.56,
+      "rrt_plan_calls": 17,
+      "rrt_success_calls": 17,
+      "rrt_direct_calls": 17,
+      "rrt_iterations_sum": 0,
+      "rrt_nodes_sum": 34,
+      "rrt_nodes_max": 2,
+      "max_adjacent_joint_step_rad": 0.004176000127465329,
+      "rrt_iterations_mean": 0.0,
+      "rrt_nodes_mean": 2.0
+    },
+    "target_summary": {
+      "ur5e": {
+        "reached_count": 14,
+        "reached_targets": [
+          "target_left_1",
+          "target_front_2",
+          "target_front_1",
+          "target_top_3",
+          "target_top_4",
+          "target_left_2",
+          "target_front_1",
+          "target_front_2",
+          "target_left_1",
+          "target_left_1",
+          "target_top_3",
+          "target_front_2",
+          "target_front_3",
+          "target_front_4"
+        ],
+        "skipped_count": 1,
+        "skipped_targets": [
+          {
+            "target": "target_right_2",
+            "reason": "ik_infeasible",
+            "reason_cn": "IK不可行"
+          }
+        ]
+      },
+      "fr3": {
+        "reached_count": 16,
+        "reached_targets": [
+          "target_top_2",
+          "target_top_1",
+          "target_right_1",
+          "target_back_1",
+          "target_top_3",
+          "target_top_4",
+          "target_left_2",
+          "target_back_1",
+          "target_right_1",
+          "target_top_1",
+          "target_top_2",
+          "target_back_1",
+          "target_top_4",
+          "target_right_1",
+          "target_back_3",
+          "target_back_4"
+        ],
+        "skipped_count": 0,
+        "skipped_targets": []
+      }
+    }
+  },
+  "runtime_profile": {
+    "planning_wall_time_s": 4.436732365982607,
+    "scheduling_preview_wall_time_s": 118.205541481002,
+    "execution_wall_time_s": 154.94035449399962,
+    "total_wall_time_s": 278.2574394819967
+  },
+  "execution_stats": {
+    "success": true,
+    "parallel_ticks": 21978,
+    "parallel_makespan_s": 43.956,
+    "serial_makespan_s": 96.878,
+    "ideal_parallel_makespan_s": 54.702,
+    "speedup_vs_serial": 2.203976703976704,
+    "overhead_vs_ideal_parallel_s": 0.0,
+    "wait_ticks": {
+      "ur5e": 0,
+      "fr3": 551
+    },
+    "wait_time_s": {
+      "ur5e": 0.0,
+      "fr3": 1.102,
+      "total": 1.102
+    },
+    "mode_counter": {
+      "both_move": 21427,
+      "fr3_wait": 551
+    },
+    "jump_summary": {
+      "raw": {
+        "ur5e": {
+          "max_step": 0.005068004484399369,
+          "max_eq_velocity": 2.5340022421996844,
+          "exceed_count": 0
+        },
+        "fr3": {
+          "max_step": 0.004176000127465329,
+          "max_eq_velocity": 2.0880000637326646,
+          "exceed_count": 0
+        }
+      },
+      "applied": {
+        "ur5e": {
+          "max_step": 0.005068004484399369,
+          "max_eq_velocity": 2.5340022421996844,
+          "exceed_count": 0
+        },
+        "fr3": {
+          "max_step": 0.004176000127465329,
+          "max_eq_velocity": 2.0880000637326646,
+          "exceed_count": 0
+        }
+      },
+      "thresholds": {
+        "jump_step_threshold": 0.06,
+        "jump_velocity_threshold": 25.0
+      }
+    },
+    "lod_stats": {
+      "total_checks": 22529,
+      "precision_checks": 4390,
+      "coarse_skips": 18139,
+      "distance_checks": 4506,
+      "distance_reuse": 18023,
+      "mode_switch_to_precision": 7,
+      "mode_switch_to_coarse": 8,
+      "last_ee_distance_m": 0.5353431827077644
+    }
+  },
+  "ablation_preview": {},
+  "comparison_rows": [
+    {
+      "method": "execution_actual",
+      "success": 1,
+      "parallel_makespan_s": 43.956,
+      "serial_makespan_s": 96.878,
+      "ideal_parallel_makespan_s": 54.702,
+      "speedup_vs_serial": 2.203976703976704,
+      "overhead_vs_ideal_parallel_s": 0.0,
+      "wait_time_total_s": 1.102,
+      "wait_time_ur5e_s": 0.0,
+      "wait_time_fr3_s": 1.102,
+      "wait_ticks_ur5e": 0,
+      "wait_ticks_fr3": 551,
+      "both_move_count": 21427,
+      "deadlock_wait_count": 0
+    }
+  ]
+}

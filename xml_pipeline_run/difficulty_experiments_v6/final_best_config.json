@@ -1,6 +1,6 @@
 {
-  "selection_policy": "success-first",
-  "selected_at": "2026-03-17",
+  "selection_policy": "freeze-stage1c-opt-v3-with-priority-sensitivity",
+  "selected_at": "2026-03-22",
   "best_config": {
     "solution": "xml_pipeline_run/difficulty_experiments_v6/solution_hard.json",
     "priority_arm": "ur5e",
@@ -20,27 +20,78 @@
     "jump_step_threshold": 0.06,
     "jump_velocity_threshold": 25.0,
     "sync_balance_weight": 0.3,
-    "random_seed_recommendation": 46
+    "enable_distance_lod": true,
+    "enable_priority_lod": true,
+    "lod_distance_in": 0.22,
+    "lod_distance_out": 0.3,
+    "lod_distance_out_both_move": 0.26,
+    "lod_check_interval": 5,
+    "priority_lod_static_step_threshold": 0.0015,
+    "enable_horizon_lod": false,
+    "random_seed_recommendation": 42
   },
-  "evidence": {
-    "lambda_search": [
-      "xml_pipeline_run/difficulty_experiments_v6/final_param_search_stage2/tables/final_param_search_summary.csv",
-      "xml_pipeline_run/difficulty_experiments_v6/final_param_search_stage3/tables/final_param_search_summary.csv"
-    ],
-    "representative_stats": [
-      "xml_pipeline_run/difficulty_experiments_v6/final_param_search_stage3/stats/stats_lambda_0_3_seed_45.json",
-      "xml_pipeline_run/difficulty_experiments_v6/final_param_search_stage3/stats/stats_lambda_0_3_seed_46.json"
-    ],
-    "validation_5seeds": {
-      "summary": "xml_pipeline_run/difficulty_experiments_v6/final_best_validation_5seeds/summary.json",
-      "trials": "xml_pipeline_run/difficulty_experiments_v6/final_best_validation_5seeds/trials.json",
-      "result": {
-        "seeds": [42, 43, 44, 45, 46],
-        "success_rate": 1.0,
-        "avg_parallel_makespan_s_on_success": 57.6852,
-        "avg_speedup_on_success": 1.728148197919916,
-        "avg_deadlock_wait_count": 0.0,
-        "avg_wait_time_total_s": 0.2972
+  "priority_profiles": {
+    "ur5e_priority_default": {
+      "batch": "xml_pipeline_run/baseline_runs/Stage1C_Opt_v3_Run",
+      "summary_csv": "xml_pipeline_run/baseline_runs/Stage1C_Opt_v3_Run/tables/baseline_summary.csv",
+      "summary": {
+        "easy": {
+          "success_rate": 1.0,
+          "parallel_makespan_mean": 23.2978,
+          "total_wall_mean": 60.5627
+        },
+        "medium": {
+          "success_rate": 1.0,
+          "parallel_makespan_mean": 45.6514,
+          "total_wall_mean": 98.2462
+        },
+        "hard": {
+          "success_rate": 1.0,
+          "parallel_makespan_mean": 55.7914,
+          "total_wall_mean": 103.2772
+        }
+      }
+    },
+    "fr3_priority_alternative": {
+      "batch": "xml_pipeline_run/baseline_runs/Stage1C_Opt_v3_PriorityFlip_Run",
+      "summary_csv": "xml_pipeline_run/baseline_runs/Stage1C_Opt_v3_PriorityFlip_Run/tables/baseline_summary.csv",
+      "summary": {
+        "easy": {
+          "success_rate": 1.0,
+          "parallel_makespan_mean": 26.262,
+          "total_wall_mean": 30.4367
+        },
+        "medium": {
+          "success_rate": 1.0,
+          "parallel_makespan_mean": 44.042,
+          "total_wall_mean": 101.3038
+        },
+        "hard": {
+          "success_rate": 1.0,
+          "parallel_makespan_mean": 53.6434,
+          "total_wall_mean": 104.3613
+        }
+      }
+    }
+  },
+  "negative_exploration": {
+    "stage1d_horizon_lod": {
+      "conclusion": "negative_return_under_current_task_distribution",
+      "compare_baseline": "xml_pipeline_run/baseline_runs/Stage1C_Opt_v3_HardMini_42_46/tables/baseline_summary.csv",
+      "set_a": {
+        "batch": "xml_pipeline_run/baseline_runs/Stage1D_Tune_SetA_HardMini_42_46",
+        "preview_wall_mean": 127.8127,
+        "total_wall_mean": 136.1
+      },
+      "set_b": {
+        "batch": "xml_pipeline_run/baseline_runs/Stage1D_Tune_SetB_HardMini_42_46",
+        "preview_wall_mean": 127.9488,
+        "total_wall_mean": 136.3475
+      },
+      "set_c": {
+        "batch": "xml_pipeline_run/baseline_runs/Stage1D_Tune_SetC_HardMini_42_46",
+        "preview_wall_mean": 128.9692,
+        "total_wall_mean": 137.3553
       }
     }
   }

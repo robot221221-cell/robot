@@ -245,6 +245,9 @@
                         pos="0.015085743 0.039539305 0.065289590"
                         quat="0.700903278 -0.704282049 0.080116196 0.079390086"
                         rgba="1 0 0 0.25"/>
+                  <geom name="ur5e_wrist3_capsule_col" class="collision" type="capsule"
+                    fromto="0 0.02 0  0 0.10 0" size="0.055"
+                    contype="0" conaffinity="0" rgba="1 0.5 0 0.18"/>
                   <site name="ur5e_ee_site" pos="0 0.1 0" euler="-1.5708 0 0" size="0.025" rgba="1 0 0 1" group="0"/>
                 </body>
               </body>
@@ -332,6 +335,9 @@
                             pos="0.059280232 0.059323968 0.032891274"
                             quat="0.889246118 0.215038024 -0.082758289 -0.395159531"
                             rgba="1 0 0 0.25"/>
+                          <geom name="fr3_link7_capsule_col" class="collision_fr3" type="capsule"
+                            fromto="0 0 0.02  0 0 0.12" size="0.055"
+                            contype="0" conaffinity="0" rgba="1 0.5 0 0.18"/>
                       <site name="fr3_ee_site" pos="0 0 0.14" quat="0.92388 0 0 -0.382683" size="0.025" rgba="0 1 0 1" group="0"/>
                     </body>
                   </body>
