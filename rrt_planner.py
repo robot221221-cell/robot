@@ -8,12 +8,23 @@ class Node:
         self.parent = None
 
 class BiRRTPlanner:
-    def __init__(self, env, arm_name='ur5e', step_size=0.1, max_iter=3000):
+    def __init__(
+        self,
+        env,
+        arm_name='ur5e',
+        step_size=0.1,
+        max_iter=3000,
+        priority_arm='ur5e',
+        enable_priority_lazy_validation=False,
+    ):
         self.env = env
         self.model = env.model
         self.arm_name = arm_name
         self.step_size = step_size
         self.max_iter = max_iter
+        self.priority_arm = priority_arm
+        self.enable_priority_lazy_validation = bool(enable_priority_lazy_validation)
+        self.is_low_priority_arm = (self.arm_name != self.priority_arm)
         self.sim_data = mujoco.MjData(self.model)
         
         if arm_name == 'ur5e':
@@ -22,6 +33,44 @@ class BiRRTPlanner:
             self.joint_ids = env.fr3_joint_ids
             
         self.jnt_ranges = [self.model.jnt_range[jid] for jid in self.joint_ids]
+        self.last_plan_stats = {}
+
+        # Stage-2 (Innovation-1 minimal): 低优先级臂在惰性验证时，
+        # 对高优先级臂使用不对称包络（capsule）替代复杂几何。
+        self.ur5e_vhacd_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "ur5e_wrist3_vhacd_col")
+        self.fr3_vhacd_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "fr3_link7_col")
+        self.ur5e_capsule_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "ur5e_wrist3_capsule_col")
+        self.fr3_capsule_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "fr3_link7_capsule_col")
+
+    def _set_geom_active(self, geom_id: int, active: bool):
+        if geom_id < 0:
+            return
+        if active:
+            self.model.geom_contype[geom_id] = 1
+            self.model.geom_conaffinity[geom_id] = 1
+        else:
+            self.model.geom_contype[geom_id] = 0
+            self.model.geom_conaffinity[geom_id] = 0
+
+    def _set_default_geom_mode(self):
+        # 默认启用复杂几何，关闭胶囊
+        self._set_geom_active(self.ur5e_vhacd_geom_id, True)
+        self._set_geom_active(self.fr3_vhacd_geom_id, True)
+        self._set_geom_active(self.ur5e_capsule_geom_id, False)
+        self._set_geom_active(self.fr3_capsule_geom_id, False)
+
+    def _set_high_priority_capsule_mode(self):
+        # 高优先级臂采用 capsule，不影响低优先级臂自身几何
+        self._set_default_geom_mode()
+        if self.priority_arm == 'ur5e':
+            self._set_geom_active(self.ur5e_vhacd_geom_id, False)
+            self._set_geom_active(self.ur5e_capsule_geom_id, True)
+        else:
+            self._set_geom_active(self.fr3_vhacd_geom_id, False)
+            self._set_geom_active(self.fr3_capsule_geom_id, True)
+
+    def _use_priority_lazy_validation(self) -> bool:
+        return bool(self.enable_priority_lazy_validation and self.is_low_priority_arm)
 
     def _is_collision_free(self, q: np.ndarray, allow_workpiece_contact: bool = False) -> bool:
         mujoco.mj_copyData(self.sim_data, self.model, self.env.data)
@@ -66,14 +115,21 @@ class BiRRTPlanner:
         allow_workpiece_contact: bool = False,
         allow_goal_workpiece_contact: bool = False,
     ) -> bool:
-        dist = np.linalg.norm(q2 - q1)
-        steps = max(5, int(dist / 0.05)) 
-        for i in range(1, steps + 1):
-            q_interp = q1 + (q2 - q1) * (i / steps)
-            is_last_step = i == steps
-            allow_interp_contact = allow_workpiece_contact or (allow_goal_workpiece_contact and is_last_step)
-            if not self._is_collision_free(q_interp, allow_workpiece_contact=allow_interp_contact): return False
-        return True
+        if self._use_priority_lazy_validation():
+            self._set_high_priority_capsule_mode()
+        try:
+            dist = np.linalg.norm(q2 - q1)
+            steps = max(5, int(dist / 0.05)) 
+            for i in range(1, steps + 1):
+                q_interp = q1 + (q2 - q1) * (i / steps)
+                is_last_step = i == steps
+                allow_interp_contact = allow_workpiece_contact or (allow_goal_workpiece_contact and is_last_step)
+                if not self._is_collision_free(q_interp, allow_workpiece_contact=allow_interp_contact):
+                    return False
+            return True
+        finally:
+            if self._use_priority_lazy_validation():
+                self._set_default_geom_mode()
 
     def _sample_random_node(self) -> Node:
         q_rand = np.zeros(len(self.joint_ids))
@@ -93,53 +149,95 @@ class BiRRTPlanner:
 
     def plan(self, q_start: np.ndarray, q_goal: np.ndarray, allow_endpoint_workpiece_contact: bool = False) -> list:
         print("\n[RRT Planner] 开始进行高维空间防碰撞探路...")
-        if not self._is_collision_free(q_start, allow_workpiece_contact=allow_endpoint_workpiece_contact):
-            print("[RRT 失败] 起点本身发生碰撞！")
-            return None
-        if not self._is_collision_free(q_goal, allow_workpiece_contact=allow_endpoint_workpiece_contact):
-            print("[RRT 失败] 终点本身发生碰撞 (IK 给了一个穿模姿态)！")
-            return None
-        if self._is_edge_collision_free(q_start, q_goal, allow_goal_workpiece_contact=allow_endpoint_workpiece_contact):
-            print("[RRT 成功] 直线路径安全，无需复杂规划。")
-            return [q_start, q_goal]
+        t_plan_start = time.time()
+        self.last_plan_stats = {
+            "success": False,
+            "direct_path": False,
+            "iterations": 0,
+            "nodes_total": 0,
+            "tree_start_nodes": 0,
+            "tree_goal_nodes": 0,
+            "plan_wall_time_s": 0.0,
+            "priority_lazy_validation": bool(self._use_priority_lazy_validation()),
+        }
+        if self._use_priority_lazy_validation():
+            self._set_high_priority_capsule_mode()
+        try:
+            if not self._is_collision_free(q_start, allow_workpiece_contact=allow_endpoint_workpiece_contact):
+                print("[RRT 失败] 起点本身发生碰撞！")
+                return None
+            if not self._is_collision_free(q_goal, allow_workpiece_contact=allow_endpoint_workpiece_contact):
+                print("[RRT 失败] 终点本身发生碰撞 (IK 给了一个穿模姿态)！")
+                return None
+            if self._is_edge_collision_free(q_start, q_goal, allow_goal_workpiece_contact=allow_endpoint_workpiece_contact):
+                print("[RRT 成功] 直线路径安全，无需复杂规划。")
+                self.last_plan_stats.update({
+                    "success": True,
+                    "direct_path": True,
+                    "iterations": 0,
+                    "nodes_total": 2,
+                    "tree_start_nodes": 1,
+                    "tree_goal_nodes": 1,
+                })
+                return [q_start, q_goal]
 
-        tree_start, tree_goal = [Node(q_start)], [Node(q_goal)]
-        start_time = time.time()
+            tree_start, tree_goal = [Node(q_start)], [Node(q_goal)]
+            start_time = time.time()
 
-        for i in range(self.max_iter):
-            rand_node = self._sample_random_node()
-            nearest_start = self._get_nearest_node(tree_start, rand_node)
-            new_start = self._steer(nearest_start, rand_node)
-            
-            if self._is_edge_collision_free(nearest_start.q, new_start.q):
-                new_start.parent = nearest_start
-                tree_start.append(new_start)
+            for i in range(self.max_iter):
+                rand_node = self._sample_random_node()
+                nearest_start = self._get_nearest_node(tree_start, rand_node)
+                new_start = self._steer(nearest_start, rand_node)
                 
-                nearest_goal = self._get_nearest_node(tree_goal, new_start)
-                new_goal = self._steer(nearest_goal, new_start)
-                
-                if self._is_edge_collision_free(nearest_goal.q, new_goal.q):
-                    new_goal.parent = nearest_goal
-                    tree_goal.append(new_goal)
+                if self._is_edge_collision_free(nearest_start.q, new_start.q):
+                    new_start.parent = nearest_start
+                    tree_start.append(new_start)
                     
-                    if np.linalg.norm(new_start.q - new_goal.q) < 1e-4:
-                        print(f"[RRT 成功] 汇合！迭代次数: {i}, 耗时: {time.time()-start_time:.2f}s")
-                        path = self._extract_path(new_start, new_goal)
-                        if path is None or len(path) < 2:
+                    nearest_goal = self._get_nearest_node(tree_goal, new_start)
+                    new_goal = self._steer(nearest_goal, new_start)
+                    
+                    if self._is_edge_collision_free(nearest_goal.q, new_goal.q):
+                        new_goal.parent = nearest_goal
+                        tree_goal.append(new_goal)
+                        
+                        if np.linalg.norm(new_start.q - new_goal.q) < 1e-4:
+                            print(f"[RRT 成功] 汇合！迭代次数: {i}, 耗时: {time.time()-start_time:.2f}s")
+                            path = self._extract_path(new_start, new_goal)
+                            if path is None or len(path) < 2:
+                                return path
+                            # 双树每轮会交换，汇合时路径方向可能是 goal->start。
+                            # 这里统一校正为 start->goal，避免上层拼接产生大跳变。
+                            d_forward = np.linalg.norm(path[0] - q_start) + np.linalg.norm(path[-1] - q_goal)
+                            d_reverse = np.linalg.norm(path[0] - q_goal) + np.linalg.norm(path[-1] - q_start)
+                            if d_reverse < d_forward:
+                                path = list(reversed(path))
+                            path[0] = q_start.copy()
+                            path[-1] = q_goal.copy()
+                            self.last_plan_stats.update({
+                                "success": True,
+                                "direct_path": False,
+                                "iterations": int(i),
+                                "nodes_total": int(len(tree_start) + len(tree_goal)),
+                                "tree_start_nodes": int(len(tree_start)),
+                                "tree_goal_nodes": int(len(tree_goal)),
+                            })
                             return path
-                        # 双树每轮会交换，汇合时路径方向可能是 goal->start。
-                        # 这里统一校正为 start->goal，避免上层拼接产生大跳变。
-                        d_forward = np.linalg.norm(path[0] - q_start) + np.linalg.norm(path[-1] - q_goal)
-                        d_reverse = np.linalg.norm(path[0] - q_goal) + np.linalg.norm(path[-1] - q_start)
-                        if d_reverse < d_forward:
-                            path = list(reversed(path))
-                        path[0] = q_start.copy()
-                        path[-1] = q_goal.copy()
-                        return path
-            tree_start, tree_goal = tree_goal, tree_start
-            
-        print("[RRT 失败] 超过最大迭代次数，未找到安全路径。")
-        return None
+                tree_start, tree_goal = tree_goal, tree_start
+                
+            print("[RRT 失败] 超过最大迭代次数，未找到安全路径。")
+            self.last_plan_stats.update({
+                "success": False,
+                "direct_path": False,
+                "iterations": int(self.max_iter),
+                "nodes_total": int(len(tree_start) + len(tree_goal)),
+                "tree_start_nodes": int(len(tree_start)),
+                "tree_goal_nodes": int(len(tree_goal)),
+            })
+            return None
+        finally:
+            self.last_plan_stats["plan_wall_time_s"] = float(time.time() - t_plan_start)
+            if self._use_priority_lazy_validation():
+                self._set_default_geom_mode()
 
     def _extract_path(self, node_start_tree: Node, node_goal_tree: Node) -> list:
         path_start = []

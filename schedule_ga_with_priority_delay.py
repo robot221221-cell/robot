@@ -232,6 +232,18 @@ class PriorityDelayScheduler:
         enable_retreat_recovery: bool = True,
         retreat_cooldown_ticks: int = 8,
         allow_high_priority_retreat: bool = False,
+        enable_distance_lod: bool = False,
+        lod_distance_in: float = 0.28,
+        lod_distance_out: float = 0.35,
+        lod_distance_out_both_move: float = -1.0,
+        lod_check_interval: int = 1,
+        enable_priority_lod: bool = False,
+        priority_lod_static_step_threshold: float = 0.0,
+        enable_horizon_lod: bool = False,
+        horizon_near_steps: int = 10,
+        horizon_far_steps: int = 50,
+        horizon_near_check_interval: int = 1,
+        horizon_far_check_interval: int = 8,
     ):
         self.env = env
         self.model = env.model
@@ -245,19 +257,173 @@ class PriorityDelayScheduler:
             "ur5e": env.ur5e_joint_ids,
             "fr3": env.fr3_joint_ids,
         }
+        self.enable_distance_lod = bool(enable_distance_lod)
+        self.enable_priority_lod = bool(enable_priority_lod)
+        self.lod_distance_in = float(lod_distance_in)
+        self.lod_distance_out = float(lod_distance_out)
+        self.lod_distance_out_both_move = float(lod_distance_out_both_move)
+        self.lod_check_interval = max(1, int(lod_check_interval))
+        self.priority_lod_static_step_threshold = max(0.0, float(priority_lod_static_step_threshold))
+        self.enable_horizon_lod = bool(enable_horizon_lod)
+        self.horizon_near_steps = max(0, int(horizon_near_steps))
+        self.horizon_far_steps = max(0, int(horizon_far_steps))
+        self.horizon_near_check_interval = max(1, int(horizon_near_check_interval))
+        self.horizon_far_check_interval = max(1, int(horizon_far_check_interval))
+        self.lod_precision_active = True  # True=精细碰撞检测；False=粗粒度跳过双臂碰撞检测
+        self._lod_refresh_countdown = 0
+        self.lod_stats = {
+            "total_checks": 0,
+            "precision_checks": 0,
+            "coarse_skips": 0,
+            "distance_checks": 0,
+            "distance_reuse": 0,
+            "mode_switch_to_precision": 0,
+            "mode_switch_to_coarse": 0,
+            "geometry_downgrade_count": 0,
+            "pseudo_wait_downgrade_count": 0,
+            "horizon_near_checks": 0,
+            "horizon_far_checks": 0,
+            "horizon_interval_override_count": 0,
+            "last_ee_distance_m": float("nan"),
+        }
+        self.ur5e_ee_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "ur5e_ee_site")
+        self.fr3_ee_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "fr3_ee_site")
+        self.ur5e_vhacd_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "ur5e_wrist3_vhacd_col")
+        self.fr3_vhacd_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "fr3_link7_col")
+        self.ur5e_capsule_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "ur5e_wrist3_capsule_col")
+        self.fr3_capsule_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "fr3_link7_capsule_col")
+        if self.enable_distance_lod and (self.lod_distance_in <= 0.0 or self.lod_distance_out <= 0.0):
+            raise ValueError("Distance-LOD 阈值必须为正数。")
+        if self.enable_distance_lod and self.lod_distance_in >= self.lod_distance_out:
+            raise ValueError("Distance-LOD 要求 lod_distance_in < lod_distance_out（滞回区间）。")
+        if self.enable_distance_lod and self.lod_distance_out_both_move > 0.0 and self.lod_distance_out_both_move <= self.lod_distance_in:
+            raise ValueError("Distance-LOD 要求 lod_distance_out_both_move > lod_distance_in。")
+        if self.enable_horizon_lod and self.horizon_far_steps > 0 and self.horizon_near_steps >= self.horizon_far_steps:
+            raise ValueError("Horizon-LOD 要求 horizon_near_steps < horizon_far_steps。")
 
     def _set_joint_state(self, data: mujoco.MjData, arm_name: str, q: np.ndarray):
         for i, jid in enumerate(self.arm_joint_ids[arm_name]):
             data.qpos[jid] = q[i]
 
-    def will_conflict(self, ur5e_q: np.ndarray, fr3_q: np.ndarray) -> bool:
+    def _set_geom_active(self, geom_id: int, active: bool):
+        if geom_id < 0:
+            return
+        if active:
+            self.model.geom_contype[geom_id] = 1
+            self.model.geom_conaffinity[geom_id] = 1
+        else:
+            self.model.geom_contype[geom_id] = 0
+            self.model.geom_conaffinity[geom_id] = 0
+
+    def _is_low_priority_quasi_static(self, ur5e_q: np.ndarray, fr3_q: np.ndarray) -> bool:
+        if self.priority_lod_static_step_threshold <= 0.0:
+            return False
+        low = "fr3" if self.priority_arm == "ur5e" else "ur5e"
+        target_q = fr3_q if low == "fr3" else ur5e_q
+        curr_q = np.array([self.env.data.qpos[jid] for jid in self.arm_joint_ids[low]], dtype=float)
+        delta = np.abs(np.asarray(target_q, dtype=float) - curr_q)
+        return bool(np.max(delta) <= self.priority_lod_static_step_threshold)
+
+    def _apply_priority_lod_geometry(self, conflict_mode: str, ur5e_q: np.ndarray, fr3_q: np.ndarray):
+        # 默认：启用双方 V-HACD，关闭双方胶囊
+        self._set_geom_active(self.ur5e_vhacd_geom_id, True)
+        self._set_geom_active(self.fr3_vhacd_geom_id, True)
+        self._set_geom_active(self.ur5e_capsule_geom_id, False)
+        self._set_geom_active(self.fr3_capsule_geom_id, False)
+
+        if not self.enable_priority_lod:
+            return
+
+        # Stage-1C 近距离时，仅在低优先级处于 wait/retreat 类状态做几何降级
+        low = "fr3" if self.priority_arm == "ur5e" else "ur5e"
+        can_downgrade_low = conflict_mode in {"high_move_low_wait", "low_retreat"}
+        if not can_downgrade_low and conflict_mode == "both_move" and self._is_low_priority_quasi_static(ur5e_q, fr3_q):
+            can_downgrade_low = True
+            self.lod_stats["pseudo_wait_downgrade_count"] += 1
+        if not can_downgrade_low:
+            return
+
+        if low == "ur5e":
+            self._set_geom_active(self.ur5e_vhacd_geom_id, False)
+            self._set_geom_active(self.ur5e_capsule_geom_id, True)
+        else:
+            self._set_geom_active(self.fr3_vhacd_geom_id, False)
+            self._set_geom_active(self.fr3_capsule_geom_id, True)
+        self.lod_stats["geometry_downgrade_count"] += 1
+
+    def will_conflict(
+        self,
+        ur5e_q: np.ndarray,
+        fr3_q: np.ndarray,
+        conflict_mode: str = "both_move",
+        horizon_remaining_steps: int = -1,
+    ) -> bool:
         self.preview_data.qpos[:] = self.env.data.qpos[:]
         self.preview_data.qvel[:] = 0.0
-        self.preview_data.ctrl[:] = self.env.data.ctrl[:]
         self._set_joint_state(self.preview_data, "ur5e", ur5e_q)
         self._set_joint_state(self.preview_data, "fr3", fr3_q)
-        mujoco.mj_forward(self.model, self.preview_data)
-        return is_inter_arm_collision(self.model, self.preview_data)
+        self.lod_stats["total_checks"] += 1
+
+        active_check_interval = self.lod_check_interval
+        force_precision = False
+        if self.enable_horizon_lod and horizon_remaining_steps >= 0:
+            if horizon_remaining_steps <= self.horizon_near_steps:
+                force_precision = True
+                active_check_interval = self.horizon_near_check_interval
+                self.lod_stats["horizon_near_checks"] += 1
+            elif horizon_remaining_steps >= self.horizon_far_steps:
+                active_check_interval = self.horizon_far_check_interval
+                self.lod_stats["horizon_far_checks"] += 1
+            if active_check_interval != self.lod_check_interval:
+                self.lod_stats["horizon_interval_override_count"] += 1
+
+        # 第一闸门：绝对空间粗筛（所有状态都先过这一步）
+        if self.enable_distance_lod and self.ur5e_ee_site_id >= 0 and self.fr3_ee_site_id >= 0:
+            refresh_distance = self._lod_refresh_countdown <= 0
+            if refresh_distance:
+                mujoco.mj_kinematics(self.model, self.preview_data)
+                ur_pos = self.preview_data.site_xpos[self.ur5e_ee_site_id]
+                fr_pos = self.preview_data.site_xpos[self.fr3_ee_site_id]
+                ee_dist = float(np.linalg.norm(ur_pos - fr_pos))
+                self.lod_stats["distance_checks"] += 1
+                self.lod_stats["last_ee_distance_m"] = ee_dist
+
+                prev_mode = self.lod_precision_active
+                lod_out = self.lod_distance_out
+                if conflict_mode == "both_move" and self.lod_distance_out_both_move > 0.0:
+                    lod_out = self.lod_distance_out_both_move
+                # 漏斗式策略：远距直接判安全；近距进入几何降级/精碰撞阶段
+                self.lod_precision_active = ee_dist < lod_out
+                if prev_mode != self.lod_precision_active:
+                    key = "mode_switch_to_precision" if self.lod_precision_active else "mode_switch_to_coarse"
+                    self.lod_stats[key] += 1
+                self._lod_refresh_countdown = active_check_interval - 1
+            else:
+                self._lod_refresh_countdown -= 1
+                self.lod_stats["distance_reuse"] += 1
+
+            if (not force_precision) and (not self.lod_precision_active):
+                self.lod_stats["coarse_skips"] += 1
+                return False
+            # 若本次未重算距离，仍需刷新运动学供后续碰撞使用。
+            if not refresh_distance:
+                mujoco.mj_kinematics(self.model, self.preview_data)
+        else:
+            mujoco.mj_kinematics(self.model, self.preview_data)
+
+        # 第二闸门：近距离状态感知几何降级（Stage-1C）
+        self._apply_priority_lod_geometry(conflict_mode, ur5e_q, fr3_q)
+        try:
+            # 第三闸门：引擎精碰撞
+            mujoco.mj_collision(self.model, self.preview_data)
+            self.lod_stats["precision_checks"] += 1
+            return is_inter_arm_collision(self.model, self.preview_data)
+        finally:
+            # 恢复几何开关，避免污染下一次检测
+            self._set_geom_active(self.ur5e_vhacd_geom_id, True)
+            self._set_geom_active(self.fr3_vhacd_geom_id, True)
+            self._set_geom_active(self.ur5e_capsule_geom_id, False)
+            self._set_geom_active(self.fr3_capsule_geom_id, False)
 
     def choose_next_indices(self, indices: Dict[str, int], trajectories: Dict[str, List[np.ndarray]]) -> Tuple[Dict[str, int], str]:
         for arm in ["ur5e", "fr3"]:
@@ -268,6 +434,7 @@ class PriorityDelayScheduler:
         curr = {arm: indices[arm] for arm in ["ur5e", "fr3"]}
         nxt = {arm: min(indices[arm] + 1, last_idx[arm]) for arm in ["ur5e", "fr3"]}
         prv = {arm: max(indices[arm] - 1, 0) for arm in ["ur5e", "fr3"]}
+        horizon_remaining = min(last_idx["ur5e"] - curr["ur5e"], last_idx["fr3"] - curr["fr3"])
 
         ur_curr = trajectories["ur5e"][curr["ur5e"]]
         fr_curr = trajectories["fr3"][curr["fr3"]]
@@ -278,7 +445,7 @@ class PriorityDelayScheduler:
         if both_done:
             return curr, "done"
 
-        if not self.will_conflict(ur_next, fr_next):
+        if not self.will_conflict(ur_next, fr_next, conflict_mode="both_move", horizon_remaining_steps=horizon_remaining):
             return nxt, "both_move"
 
         high = self.priority_arm
@@ -292,24 +459,26 @@ class PriorityDelayScheduler:
 
         if high_can_advance:
             if high == "ur5e":
-                if not self.will_conflict(high_next, low_curr):
+                # Stage-1C 放宽：当低优先级臂保持当前位姿（wait/hold）时，允许粗判门控预筛。
+                if not self.will_conflict(high_next, low_curr, conflict_mode="high_move_low_wait", horizon_remaining_steps=horizon_remaining):
                     new_idx = curr.copy()
                     new_idx[high] = nxt[high]
                     return new_idx, f"{low}_wait"
             else:
-                if not self.will_conflict(low_curr, high_next):
+                # Stage-1C 放宽：当低优先级臂保持当前位姿（wait/hold）时，允许粗判门控预筛。
+                if not self.will_conflict(low_curr, high_next, conflict_mode="high_move_low_wait", horizon_remaining_steps=horizon_remaining):
                     new_idx = curr.copy()
                     new_idx[high] = nxt[high]
                     return new_idx, f"{low}_wait"
 
         if low_can_advance:
             if low == "ur5e":
-                if not self.will_conflict(low_next, high_curr):
+                if not self.will_conflict(low_next, high_curr, conflict_mode="low_move", horizon_remaining_steps=horizon_remaining):
                     new_idx = curr.copy()
                     new_idx[low] = nxt[low]
                     return new_idx, f"{high}_blocked_low_moves"
             else:
-                if not self.will_conflict(high_curr, low_next):
+                if not self.will_conflict(high_curr, low_next, conflict_mode="low_move", horizon_remaining_steps=horizon_remaining):
                     new_idx = curr.copy()
                     new_idx[low] = nxt[low]
                     return new_idx, f"{low}_moves_to_resolve"
@@ -320,14 +489,14 @@ class PriorityDelayScheduler:
             low_prev = trajectories[low][prv[low]]
             if high == "ur5e":
                 # low = fr3
-                if not self.will_conflict(high_curr, low_prev):
+                if not self.will_conflict(high_curr, low_prev, conflict_mode="low_retreat", horizon_remaining_steps=horizon_remaining):
                     new_idx = curr.copy()
                     new_idx[low] = prv[low]
                     self.retreat_cooldown[low] = self.retreat_cooldown_ticks
                     return new_idx, f"{low}_retreat"
             else:
                 # low = ur5e
-                if not self.will_conflict(low_prev, high_curr):
+                if not self.will_conflict(low_prev, high_curr, conflict_mode="low_retreat", horizon_remaining_steps=horizon_remaining):
                     new_idx = curr.copy()
                     new_idx[low] = prv[low]
                     self.retreat_cooldown[low] = self.retreat_cooldown_ticks
@@ -337,13 +506,13 @@ class PriorityDelayScheduler:
         if self.enable_retreat_recovery and self.allow_high_priority_retreat and curr[high] > 0:
             high_prev = trajectories[high][prv[high]]
             if high == "ur5e":
-                if not self.will_conflict(high_prev, low_curr):
+                if not self.will_conflict(high_prev, low_curr, conflict_mode="high_retreat", horizon_remaining_steps=horizon_remaining):
                     new_idx = curr.copy()
                     new_idx[high] = prv[high]
                     self.retreat_cooldown[high] = self.retreat_cooldown_ticks
                     return new_idx, f"{high}_retreat"
             else:
-                if not self.will_conflict(low_curr, high_prev):
+                if not self.will_conflict(low_curr, high_prev, conflict_mode="high_retreat", horizon_remaining_steps=horizon_remaining):
                     new_idx = curr.copy()
                     new_idx[high] = prv[high]
                     self.retreat_cooldown[high] = self.retreat_cooldown_ticks
@@ -393,15 +562,47 @@ def build_time_optimal_trajectory(
     velocity_scale: float = 1.0,
     acceleration_scale: float = 1.0,
     return_home: bool = True,
+    priority_arm: str = "ur5e",
+    enable_priority_lazy_validation: bool = False,
 ) -> Tuple[List[np.ndarray], Dict[str, float], List[Dict[str, object]]]:
-    planner = BiRRTPlanner(env, arm_name=arm_name, step_size=0.15)
+    planner = BiRRTPlanner(
+        env,
+        arm_name=arm_name,
+        step_size=0.15,
+        priority_arm=priority_arm,
+        enable_priority_lazy_validation=enable_priority_lazy_validation,
+    )
     current_q = ARM_HOME_Q[arm_name].copy()
     trajectory = [current_q.copy()]
     timing = {
         "motion_time": 0.0,
         "hold_time": 0.0,
+        "rrt_plan_calls": 0,
+        "rrt_success_calls": 0,
+        "rrt_direct_calls": 0,
+        "rrt_iterations_sum": 0,
+        "rrt_nodes_sum": 0,
+        "rrt_nodes_max": 0,
+        "rrt_plan_wall_time_s_sum": 0.0,
+        "rrt_plan_wall_time_s_max": 0.0,
     }
     target_records: List[Dict[str, object]] = []
+
+    def _accumulate_rrt_stats():
+        stats = getattr(planner, "last_plan_stats", None) or {}
+        timing["rrt_plan_calls"] += 1
+        if bool(stats.get("success", False)):
+            timing["rrt_success_calls"] += 1
+        if bool(stats.get("direct_path", False)):
+            timing["rrt_direct_calls"] += 1
+        iters = int(stats.get("iterations", 0) or 0)
+        nodes = int(stats.get("nodes_total", 0) or 0)
+        plan_wall = float(stats.get("plan_wall_time_s", 0.0) or 0.0)
+        timing["rrt_iterations_sum"] += iters
+        timing["rrt_nodes_sum"] += nodes
+        timing["rrt_nodes_max"] = max(int(timing["rrt_nodes_max"]), nodes)
+        timing["rrt_plan_wall_time_s_sum"] += plan_wall
+        timing["rrt_plan_wall_time_s_max"] = max(float(timing["rrt_plan_wall_time_s_max"]), plan_wall)
 
     def _append_segment_with_boundary_check(segment: List[np.ndarray], segment_name: str, target_name: str):
         if not segment:
@@ -453,6 +654,7 @@ def build_time_optimal_trajectory(
             continue
 
         path = planner.plan(current_q, q_approach)
+        _accumulate_rrt_stats()
         if path is None:
             print(f"⚠️ [{arm_name.upper()}] {target} 接近段路径规划失败，已跳过。")
             target_records.append({
@@ -499,6 +701,7 @@ def build_time_optimal_trajectory(
 
     if return_home and np.linalg.norm(current_q - ARM_HOME_Q[arm_name]) > 1e-3:
         path_home = planner.plan(current_q, ARM_HOME_Q[arm_name].copy())
+        _accumulate_rrt_stats()
         if path_home is not None:
             home_segment, home_duration = time_parameterize_path(
                 path_home,
@@ -537,6 +740,14 @@ def build_time_optimal_trajectory(
 
     max_adj_step = get_max_adjacent_step(trajectory)
     timing["max_adjacent_joint_step_rad"] = max_adj_step
+    if timing["rrt_plan_calls"] > 0:
+        timing["rrt_iterations_mean"] = timing["rrt_iterations_sum"] / float(timing["rrt_plan_calls"])
+        timing["rrt_nodes_mean"] = timing["rrt_nodes_sum"] / float(timing["rrt_plan_calls"])
+        timing["rrt_plan_wall_time_s_mean"] = timing["rrt_plan_wall_time_s_sum"] / float(timing["rrt_plan_calls"])
+    else:
+        timing["rrt_iterations_mean"] = 0.0
+        timing["rrt_nodes_mean"] = 0.0
+        timing["rrt_plan_wall_time_s_mean"] = 0.0
     if max_adj_step > 0.25:
         print(
             f"⚠️ [{arm_name.upper()}] 轨迹离散跳变较大: max_adjacent_joint_step={max_adj_step:.4f} rad，"
@@ -601,6 +812,18 @@ def dry_run_schedule(
     disable_anti_oscillation: bool = False,
     retreat_cooldown_ticks: int = 8,
     allow_high_priority_retreat: bool = False,
+    enable_distance_lod: bool = False,
+    lod_distance_in: float = 0.28,
+    lod_distance_out: float = 0.35,
+    lod_distance_out_both_move: float = -1.0,
+    lod_check_interval: int = 1,
+    enable_priority_lod: bool = False,
+    priority_lod_static_step_threshold: float = 0.0,
+    enable_horizon_lod: bool = False,
+    horizon_near_steps: int = 10,
+    horizon_far_steps: int = 50,
+    horizon_near_check_interval: int = 1,
+    horizon_far_check_interval: int = 8,
 ) -> Dict[str, object]:
     env.reset(ARM_HOME_Q["ur5e"], ARM_HOME_Q["fr3"])
     scheduler = PriorityDelayScheduler(
@@ -609,6 +832,18 @@ def dry_run_schedule(
         enable_retreat_recovery=enable_retreat_recovery,
         retreat_cooldown_ticks=retreat_cooldown_ticks,
         allow_high_priority_retreat=allow_high_priority_retreat,
+        enable_distance_lod=enable_distance_lod,
+        lod_distance_in=lod_distance_in,
+        lod_distance_out=lod_distance_out,
+        lod_distance_out_both_move=lod_distance_out_both_move,
+        lod_check_interval=lod_check_interval,
+        enable_priority_lod=enable_priority_lod,
+        priority_lod_static_step_threshold=priority_lod_static_step_threshold,
+        enable_horizon_lod=enable_horizon_lod,
+        horizon_near_steps=horizon_near_steps,
+        horizon_far_steps=horizon_far_steps,
+        horizon_near_check_interval=horizon_near_check_interval,
+        horizon_far_check_interval=horizon_far_check_interval,
     )
     indices = {"ur5e": 0, "fr3": 0}
     trajectories = {"ur5e": ur5e_traj, "fr3": fr3_traj}
@@ -647,7 +882,14 @@ def dry_run_schedule(
                 candidate[mover] += 1
                 ur_q = trajectories["ur5e"][candidate["ur5e"]]
                 fr_q = trajectories["fr3"][candidate["fr3"]]
-                if not scheduler.will_conflict(ur_q, fr_q):
+                if mover == scheduler.priority_arm:
+                    forced_mode = "high_move_low_wait"
+                elif frozen == scheduler.priority_arm:
+                    forced_mode = "low_move"
+                else:
+                    forced_mode = "both_move"
+                horizon_remaining = min(last_idx["ur5e"] - candidate["ur5e"], last_idx["fr3"] - candidate["fr3"])
+                if not scheduler.will_conflict(ur_q, fr_q, conflict_mode=forced_mode, horizon_remaining_steps=horizon_remaining):
                     next_indices, mode = candidate, f"{frozen}_forced_wait"
                     wait_counter[frozen] += 1
                 else:
@@ -669,6 +911,7 @@ def dry_run_schedule(
                 "tick": tick,
                 "wait_counter": wait_counter,
                 "mode_counter": mode_counter,
+                "lod_stats": scheduler.lod_stats,
                 "finish_tick": {
                     "ur5e": ur_finish,
                     "fr3": fr_finish,
@@ -746,6 +989,18 @@ def auto_delay_low_priority_trajectory(
     retreat_cooldown_ticks: int = 8,
     allow_high_priority_retreat: bool = False,
     sync_balance_weight: float = 0.0,
+    enable_distance_lod: bool = False,
+    lod_distance_in: float = 0.28,
+    lod_distance_out: float = 0.35,
+    lod_distance_out_both_move: float = -1.0,
+    lod_check_interval: int = 1,
+    enable_priority_lod: bool = False,
+    priority_lod_static_step_threshold: float = 0.0,
+    enable_horizon_lod: bool = False,
+    horizon_near_steps: int = 10,
+    horizon_far_steps: int = 50,
+    horizon_near_check_interval: int = 1,
+    horizon_far_check_interval: int = 8,
 ) -> Tuple[List[np.ndarray], List[np.ndarray], Dict[str, object]]:
     baseline = dry_run_schedule(
         env,
@@ -761,6 +1016,18 @@ def auto_delay_low_priority_trajectory(
         disable_anti_oscillation=disable_anti_oscillation,
         retreat_cooldown_ticks=retreat_cooldown_ticks,
         allow_high_priority_retreat=allow_high_priority_retreat,
+        enable_distance_lod=enable_distance_lod,
+        lod_distance_in=lod_distance_in,
+        lod_distance_out=lod_distance_out,
+        lod_distance_out_both_move=lod_distance_out_both_move,
+        lod_check_interval=lod_check_interval,
+        enable_priority_lod=enable_priority_lod,
+        priority_lod_static_step_threshold=priority_lod_static_step_threshold,
+        enable_horizon_lod=enable_horizon_lod,
+        horizon_near_steps=horizon_near_steps,
+        horizon_far_steps=horizon_far_steps,
+        horizon_near_check_interval=horizon_near_check_interval,
+        horizon_far_check_interval=horizon_far_check_interval,
     )
     if baseline["success"]:
         if sync_balance_weight <= 0.0:
@@ -815,6 +1082,18 @@ def auto_delay_low_priority_trajectory(
                 disable_anti_oscillation=disable_anti_oscillation,
                 retreat_cooldown_ticks=retreat_cooldown_ticks,
                 allow_high_priority_retreat=allow_high_priority_retreat,
+                enable_distance_lod=enable_distance_lod,
+                lod_distance_in=lod_distance_in,
+                lod_distance_out=lod_distance_out,
+                lod_distance_out_both_move=lod_distance_out_both_move,
+                lod_check_interval=lod_check_interval,
+                enable_priority_lod=enable_priority_lod,
+                priority_lod_static_step_threshold=priority_lod_static_step_threshold,
+                enable_horizon_lod=enable_horizon_lod,
+                horizon_near_steps=horizon_near_steps,
+                horizon_far_steps=horizon_far_steps,
+                horizon_near_check_interval=horizon_near_check_interval,
+                horizon_far_check_interval=horizon_far_check_interval,
             )
             if not preview["success"]:
                 continue
@@ -866,6 +1145,18 @@ def auto_delay_low_priority_trajectory(
                 disable_anti_oscillation=disable_anti_oscillation,
                 retreat_cooldown_ticks=retreat_cooldown_ticks,
                 allow_high_priority_retreat=allow_high_priority_retreat,
+                enable_distance_lod=enable_distance_lod,
+                lod_distance_in=lod_distance_in,
+                lod_distance_out=lod_distance_out,
+                lod_distance_out_both_move=lod_distance_out_both_move,
+                lod_check_interval=lod_check_interval,
+                enable_priority_lod=enable_priority_lod,
+                priority_lod_static_step_threshold=priority_lod_static_step_threshold,
+                enable_horizon_lod=enable_horizon_lod,
+                horizon_near_steps=horizon_near_steps,
+                horizon_far_steps=horizon_far_steps,
+                horizon_near_check_interval=horizon_near_check_interval,
+                horizon_far_check_interval=horizon_far_check_interval,
             )
             if not refined_preview["success"]:
                 continue
@@ -927,6 +1218,18 @@ def auto_delay_low_priority_trajectory(
             disable_anti_oscillation=disable_anti_oscillation,
             retreat_cooldown_ticks=retreat_cooldown_ticks,
             allow_high_priority_retreat=allow_high_priority_retreat,
+            enable_distance_lod=enable_distance_lod,
+            lod_distance_in=lod_distance_in,
+            lod_distance_out=lod_distance_out,
+            lod_distance_out_both_move=lod_distance_out_both_move,
+            lod_check_interval=lod_check_interval,
+            enable_priority_lod=enable_priority_lod,
+            priority_lod_static_step_threshold=priority_lod_static_step_threshold,
+            enable_horizon_lod=enable_horizon_lod,
+            horizon_near_steps=horizon_near_steps,
+            horizon_far_steps=horizon_far_steps,
+            horizon_near_check_interval=horizon_near_check_interval,
+            horizon_far_check_interval=horizon_far_check_interval,
         )
         if not preview["success"]:
             continue
@@ -959,6 +1262,18 @@ def auto_delay_low_priority_trajectory(
                 disable_anti_oscillation=disable_anti_oscillation,
                 retreat_cooldown_ticks=retreat_cooldown_ticks,
                 allow_high_priority_retreat=allow_high_priority_retreat,
+                enable_distance_lod=enable_distance_lod,
+                lod_distance_in=lod_distance_in,
+                lod_distance_out=lod_distance_out,
+                lod_distance_out_both_move=lod_distance_out_both_move,
+                lod_check_interval=lod_check_interval,
+                enable_priority_lod=enable_priority_lod,
+                priority_lod_static_step_threshold=priority_lod_static_step_threshold,
+                enable_horizon_lod=enable_horizon_lod,
+                horizon_near_steps=horizon_near_steps,
+                horizon_far_steps=horizon_far_steps,
+                horizon_near_check_interval=horizon_near_check_interval,
+                horizon_far_check_interval=horizon_far_check_interval,
             )
             if refined_preview["success"]:
                 best_delay = refined_delay
@@ -1005,6 +1320,18 @@ def simulate_synchronized_execution(
     max_cmd_step: float = 0.035,
     jump_step_threshold: float = 0.06,
     jump_velocity_threshold: float = 25.0,
+    enable_distance_lod: bool = False,
+    lod_distance_in: float = 0.28,
+    lod_distance_out: float = 0.35,
+    lod_distance_out_both_move: float = -1.0,
+    lod_check_interval: int = 1,
+    enable_priority_lod: bool = False,
+    priority_lod_static_step_threshold: float = 0.0,
+    enable_horizon_lod: bool = False,
+    horizon_near_steps: int = 10,
+    horizon_far_steps: int = 50,
+    horizon_near_check_interval: int = 1,
+    horizon_far_check_interval: int = 8,
 ):
     scheduler = PriorityDelayScheduler(
         env,
@@ -1012,6 +1339,18 @@ def simulate_synchronized_execution(
         enable_retreat_recovery=enable_retreat_recovery,
         retreat_cooldown_ticks=retreat_cooldown_ticks,
         allow_high_priority_retreat=allow_high_priority_retreat,
+        enable_distance_lod=enable_distance_lod,
+        lod_distance_in=lod_distance_in,
+        lod_distance_out=lod_distance_out,
+        lod_distance_out_both_move=lod_distance_out_both_move,
+        lod_check_interval=lod_check_interval,
+        enable_priority_lod=enable_priority_lod,
+        priority_lod_static_step_threshold=priority_lod_static_step_threshold,
+        enable_horizon_lod=enable_horizon_lod,
+        horizon_near_steps=horizon_near_steps,
+        horizon_far_steps=horizon_far_steps,
+        horizon_near_check_interval=horizon_near_check_interval,
+        horizon_far_check_interval=horizon_far_check_interval,
     )
     indices = {"ur5e": 0, "fr3": 0}
     trajectories = {"ur5e": ur5e_traj, "fr3": fr3_traj}
@@ -1071,7 +1410,14 @@ def simulate_synchronized_execution(
                 candidate[mover] += 1
                 ur_q = trajectories["ur5e"][candidate["ur5e"]]
                 fr_q = trajectories["fr3"][candidate["fr3"]]
-                if not scheduler.will_conflict(ur_q, fr_q):
+                if mover == scheduler.priority_arm:
+                    forced_mode = "high_move_low_wait"
+                elif frozen == scheduler.priority_arm:
+                    forced_mode = "low_move"
+                else:
+                    forced_mode = "both_move"
+                horizon_remaining = min(last_idx["ur5e"] - candidate["ur5e"], last_idx["fr3"] - candidate["fr3"])
+                if not scheduler.will_conflict(ur_q, fr_q, conflict_mode=forced_mode, horizon_remaining_steps=horizon_remaining):
                     next_indices, mode = candidate, f"{frozen}_forced_wait"
                     wait_counter[frozen] += 1
                 else:
@@ -1180,6 +1526,7 @@ def simulate_synchronized_execution(
         "wait_counter": wait_counter,
         "mode_counter": mode_counter,
         "jump_summary": jump_summary,
+        "lod_stats": scheduler.lod_stats,
     }
 
 
@@ -1240,6 +1587,8 @@ def summarize_schedule_result(
         summary["finish_gap_s"] = abs(ur_finish - fr_finish) * sample_dt
     if "jump_summary" in result:
         summary["jump_summary"] = result["jump_summary"]
+    if "lod_stats" in result:
+        summary["lod_stats"] = result["lod_stats"]
     return summary
 
 
@@ -1354,9 +1703,40 @@ def print_comparison_table(rows: List[Dict[str, object]]):
         print(" | ".join(_fmt_value(row[c]) for c in columns))
 
 
+def make_forced_serial_trajectories(
+    ur5e_traj: List[np.ndarray],
+    fr3_traj: List[np.ndarray],
+    priority_arm: str,
+) -> Tuple[List[np.ndarray], List[np.ndarray], Dict[str, object]]:
+    """构造严格串行执行轨迹：先执行高优先级，再执行低优先级。"""
+    if not ur5e_traj or not fr3_traj:
+        return ur5e_traj, fr3_traj, {"forced_serial": True, "delay_ticks": 0}
+
+    ur = [q.copy() for q in ur5e_traj]
+    fr = [q.copy() for q in fr3_traj]
+
+    if priority_arm == "ur5e":
+        delay_ticks = len(ur)
+        fr_serial = [fr[0].copy() for _ in range(delay_ticks)] + fr
+        ur_serial = ur + [ur[-1].copy() for _ in range(len(fr))]
+    else:
+        delay_ticks = len(fr)
+        ur_serial = [ur[0].copy() for _ in range(delay_ticks)] + ur
+        fr_serial = fr + [fr[-1].copy() for _ in range(len(ur))]
+
+    return ur_serial, fr_serial, {
+        "forced_serial": True,
+        "priority_arm": priority_arm,
+        "delay_ticks": int(delay_ticks),
+    }
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="基于 TOPP-RA 的冲突检测 + 优先级等待时间调度脚本")
     parser.add_argument("--solution", default="xml_pipeline_run/ga_best_solution.json", help="GA 最优解 JSON 路径")
+    parser.add_argument("--sequence-mode", choices=["ga", "heuristic", "random", "no_evo"], default="ga", help="任务序列来源：ga=解文件GA序列；heuristic=字典序；random=固定种子随机序；no_evo=基于pairwise矩阵的无进化贪心重排")
+    parser.add_argument("--ur5e-matrix", default="xml_pipeline_run/data/cost_matrices/pairwise_transition_cost_ur5e.csv", help="no_evo 模式使用的 UR5e pairwise 矩阵")
+    parser.add_argument("--fr3-matrix", default="xml_pipeline_run/data/cost_matrices/pairwise_transition_cost_fr3.csv", help="no_evo 模式使用的 FR3 pairwise 矩阵")
     parser.add_argument("--priority-arm", choices=["ur5e", "fr3"], default="ur5e", help="冲突时的高优先级机械臂")
     parser.add_argument("--headless", action="store_true", help="无界面运行，用于快速验证")
     parser.add_argument("--sim-steps-per-tick", type=int, default=4, help="每个调度 tick 的物理步数")
@@ -1365,6 +1745,7 @@ def parse_args():
     parser.add_argument("--velocity-scale", type=float, default=1.0, help="统一缩放关节速度上限，默认 1.0")
     parser.add_argument("--acceleration-scale", type=float, default=1.0, help="统一缩放关节加速度上限，默认 1.0")
     parser.add_argument("--disable-auto-delay", action="store_true", help="禁用自动起始延迟，便于放大等待策略差异")
+    parser.add_argument("--force-serial", action="store_true", help="强制串行执行基线：先高优先级臂，再低优先级臂")
     parser.add_argument("--disable-retreat-recovery", action="store_true", help="禁用死锁回退恢复策略（用于对照）")
     parser.add_argument("--max-start-delay", type=int, default=600, help="自动延迟搜索最大 tick")
     parser.add_argument("--delay-coarse-step", type=int, default=20, help="自动延迟粗搜索步长")
@@ -1381,6 +1762,19 @@ def parse_args():
     parser.add_argument("--jump-step-threshold", type=float, default=0.06, help="Δq 超阈值统计(rad/tick)")
     parser.add_argument("--jump-velocity-threshold", type=float, default=25.0, help="等效速度超阈值统计(rad/s)")
     parser.add_argument("--sync-balance-weight", type=float, default=0.0, help="软同步权重 λ（>0 时在自动延迟搜索中惩罚双臂完工时间差）")
+    parser.add_argument("--enable-distance-lod", action="store_true", help="启用 Stage-1B 距离感知 LOD（双臂远距时跳过精细双臂碰撞检测）")
+    parser.add_argument("--enable-priority-lod", action="store_true", help="启用 Stage-1C Priority-Aware LOD（高优先级运动保持精细检测）")
+    parser.add_argument("--lod-distance-in", type=float, default=0.28, help="Distance-LOD 进入精细检测阈值 D_in（m）")
+    parser.add_argument("--lod-distance-out", type=float, default=0.35, help="Distance-LOD 退出精细检测阈值 D_out（m），需大于 D_in")
+    parser.add_argument("--lod-distance-out-both-move", type=float, default=-1.0, help="可选：both_move 专用 D_out（m）；<=0 表示复用 --lod-distance-out")
+    parser.add_argument("--lod-check-interval", type=int, default=1, help="Distance-LOD 距离重算间隔（每 N 次冲突检查重算一次，>=1）")
+    parser.add_argument("--priority-lod-static-step-threshold", type=float, default=0.0, help="1C 优化：低优先级臂单步最大关节变化不超过该阈值(rad)时，可在 both_move 视作 quasi-static 触发几何降级；<=0 关闭")
+    parser.add_argument("--enable-horizon-lod", action="store_true", help="启用 Stage-1D Horizon-Aware LOD（按剩余步数动态调整碰撞检查策略）")
+    parser.add_argument("--horizon-near-steps", type=int, default=10, help="Stage-1D：近视野阈值（<=该剩余步数时强制精细）")
+    parser.add_argument("--horizon-far-steps", type=int, default=50, help="Stage-1D：远视野阈值（>=该剩余步数时启用远视野策略）")
+    parser.add_argument("--horizon-near-check-interval", type=int, default=1, help="Stage-1D：近视野距离重算间隔")
+    parser.add_argument("--horizon-far-check-interval", type=int, default=8, help="Stage-1D：远视野距离重算间隔")
+    parser.add_argument("--enable-priority-lazy-validation", action="store_true", help="启用创新1最小版：低优先级臂在RRT惰性验证时用高优先级胶囊包络做路径复核")
     parser.add_argument("--random-seed", type=int, default=-1, help="随机种子（>=0 时固定RRT随机性，便于复现实验）")
     parser.add_argument("--disable-auto-organize", action="store_true", help="禁用实验结束后的自动结果整理")
     parser.add_argument("--report-ablation", action="store_true", help="输出 auto-delay 开/关 的调度统计对比（不改算法）")
@@ -1390,9 +1784,96 @@ def parse_args():
     return parser.parse_args()
 
 
+def resolve_sequences(solution: Dict[str, object], sequence_mode: str, random_seed: int = -1) -> Tuple[List[str], List[str]]:
+    ur5e_sequence = list(solution.get("ur5e_sequence", []) or [])
+    fr3_sequence = list(solution.get("fr3_sequence", []) or [])
+    if sequence_mode == "ga":
+        return ur5e_sequence, fr3_sequence
+
+    # 显式 GA-off 最小对照：在同一任务集合上，仅改变访问顺序，不改任务多重集。
+    if sequence_mode == "heuristic":
+        return sorted(ur5e_sequence), sorted(fr3_sequence)
+
+    # random: 固定随机种子下的随机序，代表“无进化优化”的强对照。
+    rng = random.Random(None if random_seed < 0 else int(random_seed))
+    ur = ur5e_sequence.copy()
+    fr = fr3_sequence.copy()
+    rng.shuffle(ur)
+    rng.shuffle(fr)
+    return ur, fr
+
+
+def _load_pairwise_matrix(csv_path: Path) -> Dict[str, Dict[str, float]]:
+    matrix: Dict[str, Dict[str, float]] = {}
+    with csv_path.open("r", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        header = next(reader)
+        cols = [c.strip() for c in header[1:]]
+        for row in reader:
+            if not row:
+                continue
+            src = row[0].strip()
+            matrix[src] = {}
+            for dst, v in zip(cols, row[1:]):
+                try:
+                    matrix[src][dst] = float(v)
+                except (TypeError, ValueError):
+                    matrix[src][dst] = float("inf")
+    return matrix
+
+
+def _no_evo_greedy_reorder(sequence: List[str], matrix: Dict[str, Dict[str, float]]) -> List[str]:
+    if not sequence:
+        return []
+    remaining = list(sequence)
+    ordered: List[str] = []
+    prev = "home"
+    while remaining:
+        best_idx = 0
+        best_cost = float("inf")
+        for i, target in enumerate(remaining):
+            cost = float(matrix.get(prev, {}).get(target, float("inf")))
+            if cost < best_cost:
+                best_cost = cost
+                best_idx = i
+        picked = remaining.pop(best_idx)
+        ordered.append(picked)
+        prev = picked
+    return ordered
+
+
+def resolve_sequences_no_evo(
+    solution: Dict[str, object],
+    ur5e_matrix_path: Path,
+    fr3_matrix_path: Path,
+) -> Tuple[List[str], List[str]]:
+    ur5e_sequence = list(solution.get("ur5e_sequence", []) or [])
+    fr3_sequence = list(solution.get("fr3_sequence", []) or [])
+    ur5e_matrix = _load_pairwise_matrix(ur5e_matrix_path)
+    fr3_matrix = _load_pairwise_matrix(fr3_matrix_path)
+    return (
+        _no_evo_greedy_reorder(ur5e_sequence, ur5e_matrix),
+        _no_evo_greedy_reorder(fr3_sequence, fr3_matrix),
+    )
+
+
 def main():
     args = parse_args()
     t_main_start = time.perf_counter()
+    if args.enable_distance_lod and args.lod_distance_in >= args.lod_distance_out:
+        raise ValueError("启用 Distance-LOD 时要求 --lod-distance-in < --lod-distance-out。")
+    if args.enable_distance_lod and args.lod_distance_out_both_move > 0 and args.lod_distance_out_both_move <= args.lod_distance_in:
+        raise ValueError("启用 Distance-LOD 时要求 --lod-distance-out-both-move > --lod-distance-in。")
+    if args.lod_check_interval < 1:
+        raise ValueError("--lod-check-interval 必须 >= 1。")
+    if args.priority_lod_static_step_threshold < 0:
+        raise ValueError("--priority-lod-static-step-threshold 必须 >= 0。")
+    if args.horizon_near_steps < 0 or args.horizon_far_steps < 0:
+        raise ValueError("--horizon-near-steps / --horizon-far-steps 必须 >= 0。")
+    if args.enable_horizon_lod and args.horizon_far_steps > 0 and args.horizon_near_steps >= args.horizon_far_steps:
+        raise ValueError("启用 Horizon-LOD 时要求 --horizon-near-steps < --horizon-far-steps。")
+    if args.horizon_near_check_interval < 1 or args.horizon_far_check_interval < 1:
+        raise ValueError("--horizon-near-check-interval / --horizon-far-check-interval 必须 >= 1。")
     if args.random_seed >= 0:
         np.random.seed(args.random_seed)
         random.seed(args.random_seed)
@@ -1414,8 +1895,14 @@ def main():
         except Exception as e:
             print(f"⚠️ 自动整理输出失败（不影响主流程）：{e}")
     solution = load_solution(Path(args.solution))
-    ur5e_sequence = solution.get("ur5e_sequence", [])
-    fr3_sequence = solution.get("fr3_sequence", [])
+    if args.sequence_mode == "no_evo":
+        ur5e_sequence, fr3_sequence = resolve_sequences_no_evo(
+            solution,
+            ur5e_matrix_path=Path(args.ur5e_matrix),
+            fr3_matrix_path=Path(args.fr3_matrix),
+        )
+    else:
+        ur5e_sequence, fr3_sequence = resolve_sequences(solution, args.sequence_mode, random_seed=args.random_seed)
 
     env = DualArmEnvironment("dual_arm_scene.xml")
     env.reset(ARM_HOME_Q["ur5e"], ARM_HOME_Q["fr3"])
@@ -1440,6 +1927,8 @@ def main():
         hold_steps=args.hold_steps,
         velocity_scale=args.velocity_scale,
         acceleration_scale=args.acceleration_scale,
+        priority_arm=args.priority_arm,
+        enable_priority_lazy_validation=args.enable_priority_lazy_validation,
     )
     fr3_traj, fr3_timing, fr3_target_records = build_time_optimal_trajectory(
         env,
@@ -1449,6 +1938,8 @@ def main():
         hold_steps=args.hold_steps,
         velocity_scale=args.velocity_scale,
         acceleration_scale=args.acceleration_scale,
+        priority_arm=args.priority_arm,
+        enable_priority_lazy_validation=args.enable_priority_lazy_validation,
     )
     runtime_profile["planning_wall_time_s"] = float(time.perf_counter() - t_planning_start)
     print(f"UR5e 轨迹点数: {len(ur5e_traj)}")
@@ -1480,13 +1971,35 @@ def main():
             disable_anti_oscillation=args.disable_anti_oscillation,
             retreat_cooldown_ticks=args.retreat_cooldown_ticks,
             allow_high_priority_retreat=args.allow_high_priority_retreat,
+            enable_distance_lod=args.enable_distance_lod,
+            lod_distance_in=args.lod_distance_in,
+            lod_distance_out=args.lod_distance_out,
+            lod_distance_out_both_move=args.lod_distance_out_both_move,
+            lod_check_interval=args.lod_check_interval,
+            enable_priority_lod=args.enable_priority_lod,
+            priority_lod_static_step_threshold=args.priority_lod_static_step_threshold,
+            enable_horizon_lod=args.enable_horizon_lod,
+            horizon_near_steps=args.horizon_near_steps,
+            horizon_far_steps=args.horizon_far_steps,
+            horizon_near_check_interval=args.horizon_near_check_interval,
+            horizon_far_check_interval=args.horizon_far_check_interval,
         )
         runtime_profile["scheduling_preview_wall_time_s"] += float(time.perf_counter() - t_preview_one)
         stats_off = summarize_schedule_result(preview_off, raw_ur5e_traj, raw_fr3_traj, sample_dt)
         ablation_stats["auto_delay_off"] = stats_off
         print_stats("[消融对比] auto-delay 关闭（预览）", stats_off)
 
-    if args.disable_auto_delay:
+    if args.force_serial:
+        ur5e_traj, fr3_traj, delay_info = make_forced_serial_trajectories(
+            ur5e_traj,
+            fr3_traj,
+            priority_arm=args.priority_arm,
+        )
+        print(
+            f"已启用强制串行基线：priority={args.priority_arm}, "
+            f"delay_ticks={delay_info.get('delay_ticks', 0)}"
+        )
+    elif args.disable_auto_delay:
         print("已禁用自动起始延迟：将直接使用原始双臂 TOPP-RA 轨迹并行执行。")
     else:
         t_preview_auto_delay = time.perf_counter()
@@ -1507,6 +2020,18 @@ def main():
             retreat_cooldown_ticks=args.retreat_cooldown_ticks,
             allow_high_priority_retreat=args.allow_high_priority_retreat,
             sync_balance_weight=args.sync_balance_weight,
+            enable_distance_lod=args.enable_distance_lod,
+            lod_distance_in=args.lod_distance_in,
+            lod_distance_out=args.lod_distance_out,
+            lod_distance_out_both_move=args.lod_distance_out_both_move,
+            lod_check_interval=args.lod_check_interval,
+            enable_priority_lod=args.enable_priority_lod,
+            priority_lod_static_step_threshold=args.priority_lod_static_step_threshold,
+            enable_horizon_lod=args.enable_horizon_lod,
+            horizon_near_steps=args.horizon_near_steps,
+            horizon_far_steps=args.horizon_far_steps,
+            horizon_near_check_interval=args.horizon_near_check_interval,
+            horizon_far_check_interval=args.horizon_far_check_interval,
         )
         runtime_profile["scheduling_preview_wall_time_s"] += float(time.perf_counter() - t_preview_auto_delay)
         if delay_info.get("applied"):
@@ -1547,6 +2072,18 @@ def main():
             disable_anti_oscillation=args.disable_anti_oscillation,
             retreat_cooldown_ticks=args.retreat_cooldown_ticks,
             allow_high_priority_retreat=args.allow_high_priority_retreat,
+            enable_distance_lod=args.enable_distance_lod,
+            lod_distance_in=args.lod_distance_in,
+            lod_distance_out=args.lod_distance_out,
+            lod_distance_out_both_move=args.lod_distance_out_both_move,
+            lod_check_interval=args.lod_check_interval,
+            enable_priority_lod=args.enable_priority_lod,
+            priority_lod_static_step_threshold=args.priority_lod_static_step_threshold,
+            enable_horizon_lod=args.enable_horizon_lod,
+            horizon_near_steps=args.horizon_near_steps,
+            horizon_far_steps=args.horizon_far_steps,
+            horizon_near_check_interval=args.horizon_near_check_interval,
+            horizon_far_check_interval=args.horizon_far_check_interval,
         )
         runtime_profile["scheduling_preview_wall_time_s"] += float(time.perf_counter() - t_preview_two)
         stats_on = summarize_schedule_result(preview_on, ur5e_traj, fr3_traj, sample_dt)
@@ -1588,6 +2125,18 @@ def main():
             max_cmd_step=args.max_cmd_step,
             jump_step_threshold=args.jump_step_threshold,
             jump_velocity_threshold=args.jump_velocity_threshold,
+            enable_distance_lod=args.enable_distance_lod,
+            lod_distance_in=args.lod_distance_in,
+            lod_distance_out=args.lod_distance_out,
+            lod_distance_out_both_move=args.lod_distance_out_both_move,
+            lod_check_interval=args.lod_check_interval,
+            enable_priority_lod=args.enable_priority_lod,
+            priority_lod_static_step_threshold=args.priority_lod_static_step_threshold,
+            enable_horizon_lod=args.enable_horizon_lod,
+            horizon_near_steps=args.horizon_near_steps,
+            horizon_far_steps=args.horizon_far_steps,
+            horizon_near_check_interval=args.horizon_near_check_interval,
+            horizon_far_check_interval=args.horizon_far_check_interval,
         )
         runtime_profile["execution_wall_time_s"] = float(time.perf_counter() - t_exec_start)
         runtime_profile["total_wall_time_s"] = float(time.perf_counter() - t_main_start)
@@ -1614,6 +2163,7 @@ def main():
             stats_payload = {
                 "config": {
                     "solution": args.solution,
+                    "sequence_mode": args.sequence_mode,
                     "priority_arm": args.priority_arm,
                     "headless": args.headless,
                     "sim_steps_per_tick": args.sim_steps_per_tick,
@@ -1637,6 +2187,11 @@ def main():
                     "jump_step_threshold": args.jump_step_threshold,
                     "jump_velocity_threshold": args.jump_velocity_threshold,
                     "sync_balance_weight": args.sync_balance_weight,
+                    "enable_distance_lod": args.enable_distance_lod,
+                    "enable_priority_lod": args.enable_priority_lod,
+                    "lod_distance_in": args.lod_distance_in,
+                    "lod_distance_out": args.lod_distance_out,
+                    "lod_check_interval": args.lod_check_interval,
                     "random_seed": args.random_seed,
                 },
                 "trajectory_info": {

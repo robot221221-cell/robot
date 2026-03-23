@@ -1,0 +1,8 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Local experiment artifacts (large)
+xml_pipeline_run/baseline_runs/*/
+xml_pipeline_run/debug_motion_fix/
+stage_archives/

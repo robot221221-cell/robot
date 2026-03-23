@@ -46,7 +46,10 @@ class PlanEvaluation:
     ur5e_sequence: List[str]
     fr3_sequence: List[str]
     ur5e_edges: List[Tuple[str, str, float]]
-    fr3_edgeaskAllocator:
+    fr3_edges: List[Tuple[str, str, float]]
+
+
+class GATaskAllocator:
     def __init__(
         self,
         ur5e_matrix: pd.DataFrame,
@@ -251,11 +254,15 @@ class PlanEvaluation:
         generations: int = 200,
         elite_size: int = 6,
         crossover_rate: float = 0.9,
+        use_greedy_seed: bool = True,
     ) -> Tuple[Chromosome, PlanEvaluation, List[dict]]:
         if population_size < 4:
             raise ValueError("population_size 至少为 4")
 
-        population = [self.greedy_seed()] + [self.random_chromosome() for _ in range(population_size - 1)]
+        if use_greedy_seed:
+            population = [self.greedy_seed()] + [self.random_chromosome() for _ in range(population_size - 1)]
+        else:
+            population = [self.random_chromosome() for _ in range(population_size)]
         history = []
 
         best_chromosome = None
@@ -365,6 +372,7 @@ def parse_args():
     parser.add_argument("--elite-size", type=int, default=6, help="精英保留数量")
     parser.add_argument("--balance-weight", type=float, default=DEFAULT_BALANCE_WEIGHT, help="负载均衡惩罚权重")
     parser.add_argument("--seed", type=int, default=DEFAULT_RANDOM_SEED, help="随机种子")
+    parser.add_argument("--disable-greedy-seed", action="store_true", help="禁用启发式种子注入（对照组：随机初始化）")
     parser.add_argument("--output", default="ga_best_solution.json", help="最优解输出 JSON 路径")
     return parser.parse_args()
 
@@ -388,6 +396,7 @@ def main():
         population_size=args.population,
         generations=args.generations,
         elite_size=args.elite_size,
+        use_greedy_seed=not args.disable_greedy_seed,
     )
 
     print_summary(best_eval)

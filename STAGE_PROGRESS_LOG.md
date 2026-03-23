@@ -53,3 +53,585 @@
   - `xml_pipeline_run/baseline_runs/Stage1A_Geom_Smoke/tables/baseline_trials.csv`
   - `Stage1_Optimization_Log.md`
 - 对照结论：Stage-1A 冒烟通过，下一步可进入 Stage1A 全量 30 组
+
+- 时间：2026-03-20
+- 阶段：Stage-1A（Checkpoint-03 Run-Restart）
+- 变更：为 `run_baseline_batch.py` 增加无输出心跳（`--heartbeat-seconds`），并重启 `Stage1A_Geom_Run` 全量批次
+- 验证：
+  - 心跳机制已在 `Stage1A_Geom_Heartbeat_Test`（easy seed42）验证通过
+  - 后台进程存在：`run_baseline_batch.py` + `schedule_ga_with_priority_delay.py`
+- 结果：进行中
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Stage1A_Geom_Run/launcher_stdout.log`
+  - `run_baseline_batch.py`
+- 对照结论：待全量完成后与 `B0_Baseline_Run_v2` 做统一汇总对照
+
+- 时间：2026-03-20
+- 阶段：Stage-1A（Checkpoint-04 Full-Run）
+- 变更：完成 `Stage1A_Geom_Run` 全量 30 组并生成 `Stage1A vs B0` 对照结论
+- 验证：
+  - `raw_stats=30`，`tables/baseline_summary.csv`、`baseline_trials.csv`、`baseline_summary.md` 生成完成
+  - 三档 `success_rate` 均为 `1.0`
+  - 对照 `B0_Baseline_Run_v2`：`parallel_makespan_mean` 变化很小（约 +0.15%~+0.25%）
+  - 但 `total_wall_mean` 上升明显（easy +19.79%，medium +18.28%，hard +17.02%）
+- 结果：通过（正确性通过；效率门槛未达）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Stage1A_Geom_Run/tables/`
+  - `xml_pipeline_run/baseline_runs/Stage1A_Geom_Run/final_compare_vs_B0.md`
+- 对照结论：Stage-1A 保持成功率但未带来整体耗时收益，下一步进入 Stage-1B（Distance-Aware LOD）
+
+- 时间：2026-03-20
+- 阶段：Stage-1B（Checkpoint-01 Smoke）
+- 变更：在 `schedule_ga_with_priority_delay.py` 实现 Distance-Aware LOD（`--enable-distance-lod` + `--lod-distance-in/out` 滞回），并在 `run_baseline_batch.py` 增加对应批跑透传参数
+- 验证：
+  - 运行 `Stage1B_DistanceLOD_Smoke`（easy seed42）返回码 0，`success=1`
+  - 产出目录完整：`raw_stats/`、`tables/baseline_summary.csv`、`baseline_trials.csv`
+  - 配置快照已记录 Stage-1B 参数（`enable_distance_lod=true`, `lod_distance_in=0.28`, `lod_distance_out=0.35`）
+- 结果：通过（功能与可运行性通过）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Stage1B_DistanceLOD_Smoke/`
+  - `schedule_ga_with_priority_delay.py`
+  - `run_baseline_batch.py`
+- 对照结论：当前 smoke 点位未见效率改善，需进入 Stage-1B 全量 30 组并再调阈值后统一评估
+
+- 时间：2026-03-20
+- 阶段：Stage-1B（Checkpoint-02 Full-Run-Start）
+- 变更：启动 `Stage1B_DistanceLOD_Run` 全量 30 组（easy/medium/hard × seed 42~51）
+- 验证：
+  - 后台进程存在：`run_baseline_batch.py --batch-name Stage1B_DistanceLOD_Run`
+  - 子进程参数已包含 `--enable-distance-lod --lod-distance-in 0.28 --lod-distance-out 0.35`
+- 结果：进行中
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Stage1B_DistanceLOD_Run/launcher_stdout.log`
+  - `xml_pipeline_run/baseline_runs/Stage1B_DistanceLOD_Run/raw_stats/`
+- 对照结论：待全量完成后统一对照 `B0_Baseline_Run_v2` 与 `Stage1A_Geom_Run`
+
+- 时间：2026-03-20
+- 阶段：Stage-1B（Checkpoint-03 Full-Run）
+- 变更：完成 `Stage1B_DistanceLOD_Run` 全量 30 组（`--enable-distance-lod --lod-distance-in 0.28 --lod-distance-out 0.35`）
+- 验证：
+  - `raw_stats=30`，`tables/baseline_summary.csv`、`baseline_trials.csv`、`baseline_summary.md` 完整
+  - 三档 `success_rate` 均为 `1.0`
+  - 对照 `B0_Baseline_Run_v2`：`parallel_makespan_mean` 变化很小（约 `+0.15%~+0.25%`）
+  - 但 `preview_wall_mean` 明显上升（约 `+26%~+29%`），`total_wall_mean` 上升（约 `+25%~+29%`）
+- 结果：通过（正确性通过；效率门槛未达）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Stage1B_DistanceLOD_Run/tables/`
+  - `xml_pipeline_run/baseline_runs/Stage1B_DistanceLOD_Run/launcher_stdout.log`
+- 对照结论：当前 Stage-1B 参数下效率退化，需先做阈值敏感性与开销归因再进入 Stage-1C
+
+- 时间：2026-03-21
+- 阶段：Stage-1B（Checkpoint-04 Optimize）
+- 变更：
+  - 将 Distance-LOD 判定路径由 `mj_forward` 重构为 `mj_kinematics + mj_collision` 两段式，避免“双重重计算”
+  - 增加 LOD 探针统计：`distance_checks` / `distance_reuse` / `coarse_skips` / 模式切换次数
+  - 增加距离重算降采样参数 `--lod-check-interval`
+  - 批跑脚本透传 `--lod-check-interval`
+- 验证：
+  - `Stage1B_DistanceLOD_OptSmoke`（easy seed42）成功
+  - `Stage1B_DistanceLOD_OptMini`（easy/medium/hard seed42）成功
+  - mini 对照 B0（同 seed42）显示 `total_wall_time_s` 约下降 `26%~30%`
+- 结果：通过
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Stage1B_DistanceLOD_OptSmoke/`
+  - `xml_pipeline_run/baseline_runs/Stage1B_DistanceLOD_OptMini/`
+  - `schedule_ga_with_priority_delay.py`
+  - `run_baseline_batch.py`
+- 对照结论：优化方向有效，已启动优化参数的全量复核批次 `Stage1B_DistanceLOD_Run_v2_Opt`
+
+- 时间：2026-03-21
+- 阶段：Stage-1B（Checkpoint-05 Full-Run-v2-Start）
+- 变更：启动优化参数全量批次 `Stage1B_DistanceLOD_Run_v2_Opt`（30组）
+- 验证：后台进程存在，子进程参数包含 `--lod-distance-in 0.22 --lod-distance-out 0.30 --lod-check-interval 5`
+- 结果：进行中
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Stage1B_DistanceLOD_Run_v2_Opt/launcher_stdout.log`
+  - `xml_pipeline_run/baseline_runs/Stage1B_DistanceLOD_Run_v2_Opt/raw_stats/`
+- 对照结论：待全量完成后统一对照 B0 / Stage1A / Stage1B(v1)
+
+- 时间：2026-03-21
+- 阶段：Stage-1B（Checkpoint-06 Hard Spot-Check）
+- 变更：执行优化参数 hard 场景抽检（seed42，同 Stage1B v2 参数）
+- 验证：
+  - `success=true`, `parallel_makespan_s=55.804`, `speedup_vs_serial=1.736`
+  - `deadlock_wait=0`，等待时间 `1.102s`
+  - LOD 探针：`total_checks=28453`, `coarse_skips=24063`, 旁路率 `84.57%`
+- 结果：通过
+- 产物路径：
+  - `xml_pipeline_run/difficulty_experiments_v6/stats/stats_hard_headless_stage1b_v2_spotcheck.json`
+- 对照结论：hard 抽检未发现新的调度异常，优化版 LOD 在 hard 下保持高旁路率且质量指标稳定
+
+- 时间：2026-03-21
+- 阶段：Stage-1B（Checkpoint-07 Freeze-Default）
+- 变更：将 Stage-1B v2 参数固定为当前默认配置，并更新现阶段 README 与最终配置文件
+- 验证：
+  - `README_CURRENT_STAGE.md` 可视化/headless 命令已切换到 `enable_distance_lod + D_in/out + interval`
+  - `final_best_config.json` 已写入 `enable_distance_lod=true, lod_distance_in=0.22, lod_distance_out=0.30, lod_check_interval=5`
+- 结果：通过
+- 产物路径：
+  - `README_CURRENT_STAGE.md`
+  - `xml_pipeline_run/difficulty_experiments_v6/final_best_config.json`
+- 对照结论：Stage-1B 收口完成，可作为 Stage-1C 基线继续推进
+
+- 时间：2026-03-21
+- 阶段：Stage-1C（Checkpoint-01 Kickoff + Smoke）
+- 变更：
+  - 在调度器新增 `--enable-priority-lod`（Priority-Aware LOD 开关）
+  - 批处理脚本新增透传 `--enable-priority-lod`
+  - 规则实现为：高优先级相关推进检查默认走精细检测，低优先级单臂推进/回退检查允许粗粒度 LOD
+- 验证：
+  - `Stage1C_PriorityLOD_Smoke`（easy seed42）成功，`success=1`
+  - `Stage1C_PriorityLOD_HardProbe`（hard seed42）成功，`success=1`
+  - 但两次均出现 `lod_stats.coarse_skips=0`（旁路率 0%）
+  - hard 对照显示 `preview_wall_time_s` / `total_wall_time_s` 高于 Stage-1B v2 与 B0
+- 结果：通过（功能可运行）；不通过（效率门槛）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Stage1C_PriorityLOD_Smoke/`
+  - `xml_pipeline_run/baseline_runs/Stage1C_PriorityLOD_HardProbe/`
+- 对照结论：Stage-1C 首版策略过于保守，需放宽“低优先级 hold 场景”的降级条件后再进入全量 30 组
+
+- 时间：2026-03-21
+- 阶段：Stage-1C（Checkpoint-02 Relax-Wait/Hold）
+- 变更：放宽策略为“高优先级推进 + 低优先级 wait/hold”允许粗判门控预筛（`Stage1C_PriorityLOD_HardProbe_v2Relax`）
+- 验证：
+  - easy/hard 探针均成功（`success=1`）
+  - hard 对照：`parallel_makespan_s` 不变（55.804s），但 `preview_wall_time_s` 与 `total_wall_time_s` 仍高于 Stage-1B v2
+  - `lod_bypass_rate` 仍为 `0%`（`coarse_skips=0`）
+- 结果：不通过（效率门槛）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Stage1C_PriorityLOD_Smoke_v2Relax/`
+  - `xml_pipeline_run/baseline_runs/Stage1C_PriorityLOD_HardProbe_v2Relax/`
+- 对照结论：仅放宽 wait/hold 不足以恢复旁路率，需继续放宽 `both_move` 的优先级粗判策略（带更严格阈值）
+
+- 时间：2026-03-21
+- 阶段：Stage-1C（Checkpoint-03 Funnel-Pipeline）
+- 变更：
+  - 将 `will_conflict` 重构为三段漏斗：
+    1) 无条件距离粗筛（5-tick 复用，`D > D_safe` 直接旁路）
+    2) 近距状态感知几何降级（低优先级 `wait/retreat` 时 `V-HACD -> capsule`）
+    3) `mj_collision` 精碰撞后立即恢复几何开关
+  - 在场景加入备胎胶囊体：`ur5e_wrist3_capsule_col`、`fr3_link7_capsule_col`（默认关闭）
+  - 新增统计：`geometry_downgrade_count`
+- 验证：
+  - `Stage1C_Funnel_Smoke_easy42`：`success=1`，可运行通过
+  - `Stage1C_Funnel_HardProbe_42`：`success=1`，`parallel_makespan_s=55.804`（与 1Bv2 一致）
+  - hard 探针 LOD：`coarse_skips=19381`（恢复高旁路），`geometry_downgrade_count=779`（近距降级已触发）
+  - hard 墙钟：`preview_wall_time_s=109.38`，`total_wall_time_s=117.83`（较此前 1C 版本显著下降）
+- 结果：通过（功能与效率门槛）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Stage1C_Funnel_Smoke_easy42/`
+  - `xml_pipeline_run/baseline_runs/Stage1C_Funnel_HardProbe_42/`
+  - `xml_pipeline_run/baseline_runs/Stage1C_Funnel_HardProbe_42/raw_stats/stats_hard_seed_42.json`
+- 对照结论：`both_move` 性能死结已打通；下一步可进入 Stage-1C 全量 30 组验证
+
+- 时间：2026-03-21
+- 阶段：Stage-1C（Checkpoint-04 Opt-v3 Mini）
+- 变更：
+  - 新增 `both_move` 专用距离阈值参数：`--lod-distance-out-both-move`
+  - 新增低优先级 quasi-static 降级参数：`--priority-lod-static-step-threshold`
+  - 将两项参数打通到 `dry_run_schedule` / `auto_delay` / `simulate` / `run_baseline_batch`
+- 验证：
+  - 批次：`Stage1C_Opt_v3_HardMini_42_46`（hard, seed=42/46）
+  - 参数：`D_in=0.22, D_out=0.30, D_out_both=0.26, interval=5, static_step=0.0015`
+  - 结果：`success_rate=1.0`，`parallel_makespan_mean=55.775s`（与 1C 基线一致）
+  - 墙钟：`preview_wall_mean=106.88s`，`total_wall_mean=115.02s`
+  - 对照同 seeds 的 1C 基线：`preview` 约下降 `-9.19%`，`total` 约下降 `-9.82%`
+  - LOD：`coarse_skips` 明显提升（~22.4k vs ~19.3k）
+- 结果：通过（mini）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Stage1C_Opt_v3_HardMini_42_46/`
+  - `xml_pipeline_run/baseline_runs/Stage1C_Opt_v3_HardMini_42_46/raw_stats/stats_hard_seed_42.json`
+  - `xml_pipeline_run/baseline_runs/Stage1C_Opt_v3_HardMini_42_46/raw_stats/stats_hard_seed_46.json`
+- 对照结论：Opt-v3 在 hard mini 上有效，建议进入 Stage-1C Opt-v3 全量 30 组验证
+
+- 时间：2026-03-22
+- 阶段：Stage-1D（Checkpoint-01 Kickoff + Probe）
+- 变更：
+  - 在 `PriorityDelayScheduler` 增加 Horizon-Aware LOD：
+    - `--enable-horizon-lod`
+    - `--horizon-near-steps / --horizon-far-steps`
+    - `--horizon-near-check-interval / --horizon-far-check-interval`
+  - `will_conflict` 新增 `horizon_remaining_steps`，支持近视野强制精判与远视野低频距离重算
+  - 批处理脚本新增并透传 Stage-1D 参数
+- 验证：
+  - `Stage1D_HorizonLOD_Smoke`（easy seed42）成功
+  - `Stage1D_HorizonLOD_HardProbe`（hard seed42）成功
+  - 但 hard 对照 Stage-1C Opt-v3（同 seed42）显示退化：
+    - `preview_wall_time_s: 95.47 -> 125.31`（+31%）
+    - `total_wall_time_s: 103.07 -> 133.91`（+30%）
+    - `precision_checks` 明显增加（6160 -> 12992）
+- 结果：不通过（当前参数）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Stage1D_HorizonLOD_Smoke/`
+  - `xml_pipeline_run/baseline_runs/Stage1D_HorizonLOD_HardProbe/`
+- 对照结论：Stage-1D 已接通，但首组参数过于保守（近视野精判占比高）导致效率退化，需先调参后再决定是否进入 full30
+
+- 时间：2026-03-22
+- 阶段：Stage-1C（Checkpoint-05 Opt-v3 Full30）
+- 变更：完成 `Stage1C_Opt_v3_Run` 全量 30 组（easy/medium/hard × seed42~51）
+- 验证：
+  - 三档 `success_rate=1.0`
+  - `priority_arm=ur5e` 结果：
+    - easy: `parallel_makespan_mean=23.2978`, `total_wall_mean=60.5627`
+    - medium: `parallel_makespan_mean=45.6514`, `total_wall_mean=98.2462`
+    - hard: `parallel_makespan_mean=55.7914`, `total_wall_mean=103.2772`
+- 结果：通过
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Stage1C_Opt_v3_Run/tables/`
+  - `xml_pipeline_run/baseline_runs/Stage1C_Opt_v3_Run/raw_stats/`
+- 对照结论：Stage-1C Opt-v3 达到当前主线冻结标准（质量稳定 + 效率优于早期 1C）
+
+- 时间：2026-03-22
+- 阶段：Stage-1C（Checkpoint-06 Priority-Flip Full30）
+- 变更：完成 `priority_arm=fr3` 的全量 30 组对照（`Stage1C_Opt_v3_PriorityFlip_Run`）
+- 验证：
+  - 三档 `success_rate=1.0`
+  - `priority_arm=fr3` 结果：
+    - easy: `parallel_makespan_mean=26.2620`, `total_wall_mean=30.4367`
+    - medium: `parallel_makespan_mean=44.0420`, `total_wall_mean=101.3038`
+    - hard: `parallel_makespan_mean=53.6434`, `total_wall_mean=104.3613`
+- 结果：通过
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Stage1C_Opt_v3_PriorityFlip_Run/tables/`
+  - `xml_pipeline_run/baseline_runs/Stage1C_Opt_v3_PriorityFlip_Run/raw_stats/`
+- 对照结论：优先级存在“分难度取舍”，应作为论文敏感性结论保留，不做单边绝对优先声明
+
+- 时间：2026-03-22
+- 阶段：Stage-1D（Checkpoint-02 Tune Set-A/B/C）
+- 变更：完成 hard mini 参数扫描（seed42/46）
+  - Set-A: `near/far=20/80, interval=5/15`
+  - Set-B: `near/far=30/100, interval=5/20`
+  - Set-C: `near/far=40/120, interval=6/30`
+- 验证：
+  - 三组均 `success_rate=1.0`
+  - 对照 Stage-1C Opt-v3 hard mini（`preview=106.88`, `total=115.02`）：
+    - Set-A: `preview=127.81`, `total=136.10`
+    - Set-B: `preview=127.95`, `total=136.35`
+    - Set-C: `preview=128.97`, `total=137.36`
+- 结果：不通过（效率门槛）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Stage1D_Tune_SetA_HardMini_42_46/`
+  - `xml_pipeline_run/baseline_runs/Stage1D_Tune_SetB_HardMini_42_46/`
+  - `xml_pipeline_run/baseline_runs/Stage1D_Tune_SetC_HardMini_42_46/`
+- 对照结论：Stage-1D 在当前任务分布下为负收益探索，冻结为“非主线”
+
+- 时间：2026-03-22
+- 阶段：Stage 冻结与清理（文档收口）
+- 变更：
+  - 主方法冻结为 `Stage-1C Opt-v3`
+  - 更新当前 README 与最终配置文件，固化 `ur5e/fr3` 双优先级结论
+  - 生成清理记录 `CLEANUP_FREEZE_20260322.md`
+- 验证：
+  - 文档与配置文件可读且路径有效
+  - Stage-1D 明确标注“当前任务分布下负收益探索”
+- 结果：通过
+- 产物路径：
+  - `README_CURRENT_STAGE.md`
+  - `xml_pipeline_run/difficulty_experiments_v6/final_best_config.json`
+  - `CLEANUP_FREEZE_20260322.md`
+- 对照结论：主线收口完成，可直接进入 A/B/C 对照组实现与论文主表构建
+
+- 时间：2026-03-22
+- 阶段：A/B/C 对照组（Checkpoint-01 Hard-Mini 启动）
+- 变更：
+  - 为批跑脚本增加对照参数透传：`--disable-auto-delay` / `--force-serial` / `--disable-retreat-recovery` / `--disable-anti-oscillation`
+  - 完成 hard mini（seed42/46）四组首轮：Ctrl-A/Ctrl-B/Ctrl-C/Ours
+- 验证：
+  - Ctrl-A（串行）：`success_rate=1.0`, `parallel_makespan_mean=95.737`
+  - Ctrl-B（启发式）：`success_rate=0.0`, `deadlock_wait_mean=201.0`
+  - Ctrl-C（反应式）：`success_rate=1.0`, `parallel_makespan_mean=56.233`
+  - Ours（Stage-1C Opt-v3）：`success_rate=1.0`, `parallel_makespan_mean=55.775`
+- 结果：通过（流程接通，首轮区分度已出现）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/CtrlA_Serial_HardMini_42_46/`
+  - `xml_pipeline_run/baseline_runs/CtrlB_Heuristic_HardMini_42_46_v2/`
+  - `xml_pipeline_run/baseline_runs/CtrlC_Reactive_HardMini_42_46/`
+  - `xml_pipeline_run/baseline_runs/Ours_Stage1C_OptV3_HardMini_42_46_v2/`
+  - `xml_pipeline_run/baseline_runs/CONTROL_HARD_MINI_20260322.md`
+- 对照结论：下一步进入同口径墙钟比较（统一 auto-delay 开/关）并扩展到 full30
+
+- 时间：2026-03-22
+- 阶段：A/B/C 对照组（Checkpoint-02 Hard-Full30）
+- 变更：完成 hard full30（seed42~51）四组批跑
+  - Ctrl-A 串行（`--disable-auto-delay --force-serial`）
+  - Ctrl-B 启发式（`--disable-auto-delay --disable-retreat-recovery --disable-anti-oscillation`）
+  - Ctrl-C 反应式（`--disable-auto-delay`）
+  - Ours Stage-1C（`--disable-auto-delay` + 1C Opt-v3 参数）
+- 验证：
+  - Ctrl-A：`success_rate=1.0`, `parallel_makespan_mean=95.7534`
+  - Ctrl-B：`success_rate=0.0`, `deadlock_wait_mean=201.0`
+  - Ctrl-C：`success_rate=1.0`, `parallel_makespan_mean=56.2494`
+  - Ours(no auto-delay)：`success_rate=0.0`, `deadlock_wait_mean=201.0`
+  - Ours(with auto-delay, 既有 full30)：`success_rate=1.0`, `parallel_makespan_mean=55.7914`
+- 结果：通过（hard full30 对照已形成）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/CtrlA_Serial_HardFull30_42_51/`
+  - `xml_pipeline_run/baseline_runs/CtrlB_Heuristic_HardFull30_42_51/`
+  - `xml_pipeline_run/baseline_runs/CtrlC_Reactive_HardFull30_42_51/`
+  - `xml_pipeline_run/baseline_runs/Ours_Stage1C_OptV3_NoAutoDelay_HardFull30_42_51/`
+  - `xml_pipeline_run/baseline_runs/CONTROL_HARD_FULL30_20260322.md`
+- 对照结论：`auto-delay` 对 Ours 在 hard 分布下是必要组成；下一步应统一“with auto-delay”口径补跑 Ctrl-C（必要时 Ctrl-B）作为主表
+
+- 时间：2026-03-22
+- 阶段：A/B/C 对照组（Checkpoint-03 Hard-Full30 Fairness）
+- 变更：补跑 Ctrl-C 的 with auto-delay 口径（`CtrlC_Reactive_AutoDelay_HardFull30_42_51`）
+- 验证：
+  - Ctrl-C(with auto-delay): `success_rate=1.0`, `parallel_makespan_mean=55.7914`, `total_wall_mean=224.0143`
+  - Ours(with auto-delay): `success_rate=1.0`, `parallel_makespan_mean=55.7914`, `total_wall_mean=103.2772`
+- 结果：通过
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/CtrlC_Reactive_AutoDelay_HardFull30_42_51/`
+  - `xml_pipeline_run/baseline_runs/CONTROL_HARD_FULL30_20260322.md`
+- 对照结论：在统一 with auto-delay 条件下，hard full30 的任务质量持平，而 Ours 计算墙钟显著更低
+
+- 时间：2026-03-22
+- 阶段：A/B/C 对照组（Checkpoint-04 Medium+Easy Full30）
+- 变更：完成 medium+easy full30（seed42~51）并补齐 with auto-delay 公平口径
+  - Ctrl-A 串行（`--disable-auto-delay --force-serial`）
+  - Ctrl-B 启发式（`--disable-auto-delay --disable-retreat-recovery --disable-anti-oscillation`）
+  - Ctrl-C 反应式（`--disable-auto-delay` / `with auto-delay`）
+  - Ours Stage-1C（`--disable-auto-delay` + 1C Opt-v3 参数）
+- 验证：
+  - easy（with auto-delay）：
+    - Ctrl-C：`success_rate=1.0`, `parallel_makespan_mean=23.3058`, `total_wall_mean=133.1354`
+    - Ours：`success_rate=1.0`, `parallel_makespan_mean=23.2978`, `total_wall_mean=60.5627`
+  - medium（with auto-delay）：
+    - Ctrl-C：`success_rate=1.0`, `parallel_makespan_mean=45.6514`, `total_wall_mean=200.7553`
+    - Ours：`success_rate=1.0`, `parallel_makespan_mean=45.6514`, `total_wall_mean=98.2462`
+  - no auto-delay：Ctrl-B 仍稳定失败；Ours 在 medium 出现失败（`success_rate=0.0`）
+- 结果：通过
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/CtrlA_Serial_MediumEasyFull30_42_51/`
+  - `xml_pipeline_run/baseline_runs/CtrlB_Heuristic_MediumEasyFull30_42_51/`
+  - `xml_pipeline_run/baseline_runs/CtrlC_Reactive_MediumEasyFull30_42_51/`
+  - `xml_pipeline_run/baseline_runs/CtrlC_Reactive_AutoDelay_MediumEasyFull30_42_51/`
+  - `xml_pipeline_run/baseline_runs/Ours_Stage1C_OptV3_NoAutoDelay_MediumEasyFull30_42_51/`
+  - `xml_pipeline_run/baseline_runs/CONTROL_MEDIUM_EASY_FULL30_20260322.md`
+- 对照结论：在统一 with auto-delay 条件下，medium/easy 与 hard 一致，任务质量基本持平而 Ours 墙钟显著更低
+
+- 时间：2026-03-22
+- 阶段：A/B/C 对照组（Checkpoint-05 High-Conflict Case Study）
+- 变更：完成 hard 高冲突子集分析（统一 with auto-delay，Ctrl-C vs Ours）
+- 验证：
+  - 选种规则：按 hard full30 的 `rrt_nodes_max_ur5e` 取 Top-3 seeds=`47,44,46`
+  - Ctrl-C：`success_rate=1.0`, `parallel_makespan_mean=55.7780`, `total_wall_mean=224.8435`
+  - Ours：`success_rate=1.0`, `parallel_makespan_mean=55.7780`, `total_wall_mean=103.2575`
+- 结果：通过
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/CONTROL_HIGH_CONFLICT_20260322.md`
+- 对照结论：高冲突子集与主表一致——任务质量持平，Ours 在计算墙钟上显著更优
+
+- 时间：2026-03-22
+- 阶段：A/B/C 对照组（Checkpoint-06 Paper-Main-Table）
+- 变更：将 hard + medium/easy + high-conflict 三份报告整合为投稿主表文档（统一 with auto-delay 口径）
+- 验证：
+  - easy/medium/hard 主表与原报告数值一致
+  - high-conflict 子表与 case study 数值一致
+- 结果：通过
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/CONTROL_PAPER_MAIN_TABLE_20260322.md`
+- 对照结论：论文主叙述已可直接复用——任务质量持平，Ours 在计算墙钟上稳定显著更优
+
+- 时间：2026-03-23
+- 阶段：创新2消融（Checkpoint-07 Mini-Matrix）
+- 变更：执行 hard mini（seed42/46）的 Stage-1C on/off × auto-delay on/off 矩阵，并整理 GA-off 代理对照
+- 验证：
+  - GA on + delay on 条件下，Stage-1C on 相比 off：
+    - `preview_wall_mean` 226.88s → 106.88s（约 -52.9%）
+    - `total_wall_mean` 235.73s → 115.02s（约 -51.2%）
+    - `parallel_makespan_mean` 保持 55.775s
+  - Stage-1C on + delay off：`success_rate=0.0`（显示 delay 为关键组成）
+- 结果：通过（短周期矩阵）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Ablation_GAon_Stage0_DelayOn_HardMini_42_46_r1/`
+  - `xml_pipeline_run/baseline_runs/Ablation_GAon_Stage0_DelayOff_HardMini_42_46_r1/`
+  - `xml_pipeline_run/baseline_runs/Ablation_GAon_Stage1_DelayOff_HardMini_42_46_r1/`
+  - `xml_pipeline_run/baseline_runs/CONTROL_INNOVATION2_ABLATION_MINI_20260323.md`
+- 对照结论：创新2链条中的“Stage-1C 加速 + delay 联动”已得到直接支持；显式 GA on/off 因果仍需下一阶段补开关实验
+
+- 时间：2026-03-23
+- 阶段：创新1最小版（Checkpoint-08 Mini-Impl+Validate）
+- 变更：实现并接通 `--enable-priority-lazy-validation`（低优先级臂 RRT 惰性验证时使用高优先级胶囊包络）
+- 验证：
+  - hard mini（seed42/46）`lazy off` vs `lazy on`：
+    - success 均为 `1.0`
+    - makespan 均为 `55.775s`
+    - `preview_wall_mean` 108.24s → 106.50s（约 -1.6%）
+    - `total_wall_mean` 116.35s → 114.70s（约 -1.4%）
+  - 新增 RRT 计时统计显示 `rrt_plan_wall_time_s_sum` 变化很小（未见显著下降）
+- 结果：通过（功能正确）；不通过（“显著 RRT wall 降低”门槛）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Innovation1_LazyVal_Off_HardMini_42_46_r1/`
+  - `xml_pipeline_run/baseline_runs/Innovation1_LazyVal_On_HardMini_42_46_r1/`
+  - `xml_pipeline_run/baseline_runs/CONTROL_INNOVATION1_MINI_20260323.md`
+- 对照结论：创新1当前最小实现增益有限，先冻结为 Stage-2 分支，不立即扩 full30
+
+- 时间：2026-03-23
+- 阶段：创新2（Checkpoint-09 Explicit-GA-OnOff-Mini）
+- 变更：新增 `--sequence-mode {ga, heuristic}` 显式开关，并完成 hard mini（42/46）GA on/off 试跑
+- 验证：
+  - GA on：`success_rate=1.0`, `parallel_makespan_mean=55.7750`, `total_wall_mean=109.4939`
+  - GA off(heuristic)：`success_rate=1.0`, `parallel_makespan_mean=49.8560`, `total_wall_mean=103.7939`
+- 结果：通过（管线接通）；不通过（论文因果口径）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Innovation2_GAExplicit_On_HardMini_42_46_r1/`
+  - `xml_pipeline_run/baseline_runs/Innovation2_GAExplicit_Off_HardMini_42_46_r1/`
+  - `xml_pipeline_run/baseline_runs/CONTROL_INNOVATION2_GA_ONOFF_EXPLICIT_MINI_20260323.md`
+- 对照结论：当前 GA-off 为代理定义（heuristic 排序），仅证明显式开关可运行；需补“严格 GA-off（无进化）”后再用于论文因果结论
+
+- 时间：2026-03-23
+- 阶段：创新2（Checkpoint-10 Explicit-GA-Off-Random-Mini）
+- 变更：在显式 `sequence-mode` 上新增 `random` 基线并完成 hard mini（42/46）批跑
+- 验证：
+  - GA on：`parallel_makespan_mean=55.7750`, `total_wall_mean=109.4939`
+  - GA off(random)：`parallel_makespan_mean=55.9090`, `total_wall_mean=111.6083`
+  - 方向上 GA 略优，但幅度较小
+- 结果：通过（趋势验证）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Innovation2_GAOffRandom_HardMini_42_46_r1/`
+  - `xml_pipeline_run/baseline_runs/CONTROL_INNOVATION2_GA_ONOFF_EXPLICIT_MINI_20260323.md`
+- 对照结论：显式 GA on/off 已形成双代理（heuristic/random）；论文闭环仍建议补“严格无进化 GA-off”定义
+
+- 时间：2026-03-23
+- 阶段：创新2（Checkpoint-11 Explicit-GA-OnOff-HardFull30）
+- 变更：将显式 `sequence-mode` 对照从 hard mini 扩展到 hard full30（seed42~51）
+- 验证：
+  - GA on：`success_rate=1.0`, `parallel_makespan_mean=55.7914`, `total_wall_mean=116.2199`
+  - GA off(random)：`success_rate=0.9`, `parallel_makespan_mean=58.1927`, `total_wall_mean=111.1348`
+  - 成功样本口径下：GA on 的 `makespan` 仍更优（55.7914 vs 58.1927）
+- 结果：通过（full30 趋势验证）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Innovation2_GAExplicit_On_HardFull30_42_51_r1/`
+  - `xml_pipeline_run/baseline_runs/Innovation2_GAOffRandom_HardFull30_42_51_r1/`
+  - `xml_pipeline_run/baseline_runs/CONTROL_INNOVATION2_GA_ONOFF_EXPLICIT_FULL30_20260323.md`
+- 对照结论：创新2在 hard full30 上体现出“质量/稳定性收益”；wall-time 因果仍需严格 GA-off（无进化）定义补证
+
+- 时间：2026-03-23
+- 阶段：创新2（Checkpoint-12 Strict-GA-Off-NoEvo-HardFull30）
+- 变更：新增显式 `sequence-mode=no_evo`（同任务多重集 + pairwise 成本矩阵 + 无进化贪心重排）并接入批跑
+- 验证：
+  - GA on（`sequence-mode=ga`）：`success_rate=1.0`, `parallel_makespan_mean=55.7914`
+  - GA off（`sequence-mode=no_evo`）：`success_rate=1.0`, `parallel_makespan_mean=58.2008`
+  - 相比 no_evo，GA on 在 hard full30 的并行质量更优（makespan 约改善 4.3%）
+- 结果：通过（严格 GA-off 口径落地 + full30 主结论成立）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Innovation2_GAOffNoEvo_HardFull30_42_51_r1/`
+  - `xml_pipeline_run/baseline_runs/CONTROL_INNOVATION2_GA_ONOFF_EXPLICIT_FULL30_20260323.md`
+- 对照结论：创新2“GA 提升并行质量”的 hard full30 证据已闭环；下一步扩展 medium/easy full30 验证跨难度稳定性
+
+- 时间：2026-03-23
+- 阶段：创新2（Checkpoint-13 Strict-GA-OnOff-MediumEasy-Full30）
+- 变更：完成 medium+easy full30（seed42~51）下 `ga` vs 严格 `no_evo` 对照批跑
+- 验证：
+  - easy：GA on `makespan=23.2978`，no_evo `23.6170`（GA 略优）
+  - medium：GA on `makespan=45.6514`，no_evo `42.9868`（no_evo 更优）
+  - 两组均 `success_rate=1.0`
+- 结果：通过（跨难度验证完成）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Innovation2_GAExplicit_On_MediumEasyFull30_42_51_r1/`
+  - `xml_pipeline_run/baseline_runs/Innovation2_GAOffNoEvo_MediumEasyFull30_42_51_r1/`
+  - `xml_pipeline_run/baseline_runs/CONTROL_INNOVATION2_STRICT_MEDIUM_EASY_FULL30_20260323.md`
+- 对照结论：创新2收益呈难度相关特征（hard 正向、medium 不占优、easy 差异小）
+
+- 时间：2026-03-23
+- 阶段：创新2（Checkpoint-14 Archive-and-Docs）
+- 变更：完成创新2严格对照结果归档与主文档链接更新
+- 验证：
+  - 已生成最终归档文档并汇总 full30 三难度结果
+  - 已在论文主表文档追加创新2进展与报告链接
+- 结果：通过（归档完成）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/CONTROL_INNOVATION2_STRICT_FINAL_ARCHIVE_20260323.md`
+  - `xml_pipeline_run/baseline_runs/CONTROL_PAPER_MAIN_TABLE_20260322.md`
+- 对照结论：创新2实验链条（实现→hard→medium/easy→归档）已闭环，可进入论文口径整理阶段
+
+- 时间：2026-03-23
+- 阶段：创新2（Checkpoint-15 Significance-Stats）
+- 变更：完成 GA vs 严格 no_evo 的配对显著性统计（easy/medium/hard full30）并输出 JSON+MD 报告
+- 验证：
+  - `makespan`：hard 上 GA 显著更优（p=0.002）；medium 上 no_evo 显著更优（p=0.002）；easy 不显著（p=0.50）
+  - `total_wall_time`：三难度均为 no_evo 显著更低（p=0.002）
+- 结果：通过（统计闭环完成）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/CONTROL_INNOVATION2_STRICT_SIGNIFICANCE_20260323.json`
+  - `xml_pipeline_run/baseline_runs/CONTROL_INNOVATION2_STRICT_SIGNIFICANCE_20260323.md`
+  - `xml_pipeline_run/baseline_runs/CONTROL_INNOVATION2_STRICT_FINAL_ARCHIVE_20260323.md`
+- 对照结论：创新2应按“难度相关收益”口径进入论文正文与讨论
+
+- 时间：2026-03-23
+- 阶段：机制验证（Checkpoint-16 Medium-SyncWeight-Sweep-Mini）
+- 变更：完成 medium mini（seed42/46/51）`sync_balance_weight` 扫参（0.0/0.3/0.5）×（ga/no_evo）
+- 验证：
+  - `w=0.0`：GA 组 `success_rate=0.0`（3/3 失败），no_evo 组 `success_rate=1.0`
+  - `w=0.3/0.5`：GA 恢复成功，但 `makespan` 仍劣于 no_evo（46.2167 vs 43.0700）
+  - no_evo 的 `wait_time_mean` 全程稳定在 `0.21s`，显著低于 GA（约 `1.15s`）
+- 结果：通过（机制证据补强）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/CONTROL_INNOVATION2_MECHANISM_SWEEP_MEDIUM_MINI_20260323.md`
+  - `xml_pipeline_run/baseline_runs/MechSweep_MediumMini_w*_GA_42_46_51_r1/`
+  - `xml_pipeline_run/baseline_runs/MechSweep_MediumMini_w*_NoEvo_42_46_51_r1/`
+- 对照结论：medium 反转并非由 `sync_balance_weight` 单参数可消除，更可能是目标函数与在线冲突等待代价错配
+
+- 时间：2026-03-23
+- 阶段：小创新2（Checkpoint-17 GA-Seeding-Mini-Ablation）
+- 变更：为 `ga_task_allocation.py` 增加 `--disable-greedy-seed`，完成启发式种子注入开/关 mini 消融（seed42/46/51）
+- 验证：
+  - greedy on：`first_best_gen` = 2/2/2
+  - greedy off：`first_best_gen` = 2/2/3
+  - 最终最优 fitness 均一致（`38.54045`）
+- 结果：通过（方向正确，收益幅度小）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/CONTROL_GA_SEEDING_MINI_20260323.md`
+  - `xml_pipeline_run/baseline_runs/GASeeding_Ablation_Mini_20260323/`
+- 对照结论：GA seeding 可作为低风险增强项保留；需在更大任务规模上验证更强收敛收益
+
+- 时间：2026-03-23
+- 阶段：小创新扩展（Checkpoint-18 GA-Objective-Alignment-Mini）
+- 变更：实现 GA `objective-mode=aligned`（makespan/wait 代理主导）并完成 medium+hard mini（seed42/46/51）对照
+- 验证：
+  - medium：`GA legacy` 与 `GA aligned` makespan 同为 `55.6100`，均显著劣于 `no_evo=43.0700`
+  - hard：`GA aligned` 相比 `GA legacy` 改善（65.6080 → 61.9200），但仍落后 `no_evo=57.6820`
+  - 三组 success 均为 `1.0`
+- 结果：通过（完成验证）；不通过（未达到“扭转 medium 反转”目标）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/CONTROL_GA_OBJECTIVE_ALIGNMENT_MINI_20260323.md`
+  - `xml_pipeline_run/baseline_runs/ObjAlignV3_Legacy_GA_MedHardMini_42_46_51_r1/`
+  - `xml_pipeline_run/baseline_runs/ObjAlignV3_Aligned_GA_MedHardMini_42_46_51_r1/`
+  - `xml_pipeline_run/baseline_runs/ObjAlign_NoEvo_MedHardMini_42_46_51_r1/`
+- 对照结论：仅靠离线适应度权重微调不足以对齐执行期耗时法则；后续需把在线等待代价更直接纳入GA评估
+
+- 时间：2026-03-23
+- 阶段：主线整理（Checkpoint-19 Cleanup-After-ObjAlign）
+- 变更：清理未采纳的 GA objective alignment 实验入口，恢复 `ga_task_allocation.py` 主线评估逻辑（保留 `--disable-greedy-seed`）
+- 验证：`ga_task_allocation.py` 语法检查通过
+- 结果：通过（主线已回归稳定配置）
+- 产物路径：
+  - `ga_task_allocation.py`
+- 对照结论：objective alignment 保留为负结果文档，不进入主线默认流程
+
+- 时间：2026-03-23
+- 阶段：创新1（Checkpoint-20 LazyVal-MedHard-Mini-r2）
+- 变更：完成 medium+hard mini（seed42/46/51）`lazy off` vs `lazy on` 对照复验
+- 验证：
+  - medium：makespan 相同（46.2167）；total_wall 110.8580 → 111.0201（+0.1621s）
+  - hard：makespan 相同（55.7847）；total_wall 116.8731 → 116.7365（-0.1366s）
+  - success 均为 1.0
+- 结果：通过（功能稳定）；不通过（收益门槛）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/Innovation1_LazyVal_Off_MedHardMini_42_46_51_r2/`
+  - `xml_pipeline_run/baseline_runs/Innovation1_LazyVal_On_MedHardMini_42_46_51_r2/`
+  - `xml_pipeline_run/baseline_runs/CONTROL_INNOVATION1_MEDHARD_MINI_20260323.md`
+- 对照结论：创新1在当前实现下仍为弱收益分支，不建议扩 full30
+
+- 时间：2026-03-23
+- 阶段：收口整理（Checkpoint-21 Incremental-Innovations-Final-Decision）
+- 变更：完成增量创新（机制扫参/GA seeding/GA objective alignment/Innovation-1）统一决策收口并更新主文档
+- 验证：
+  - 已形成“保留/不保留”最终决策表
+  - 已将决策表链接写入论文主表与严格归档文档
+- 结果：通过（进入写作阶段）
+- 产物路径：
+  - `xml_pipeline_run/baseline_runs/CONTROL_INCREMENTAL_INNOVATIONS_DECISION_20260323.md`
+  - `xml_pipeline_run/baseline_runs/CONTROL_PAPER_MAIN_TABLE_20260322.md`
+  - `xml_pipeline_run/baseline_runs/CONTROL_INNOVATION2_STRICT_FINAL_ARCHIVE_20260323.md`
+- 对照结论：实验阶段收口完成，后续以“难度相关收益 + 负结果边界”口径进入论文撰写

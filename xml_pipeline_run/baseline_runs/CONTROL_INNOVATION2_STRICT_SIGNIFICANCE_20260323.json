@@ -1,0 +1,91 @@
+{
+  "comparison": "GA(on) vs no_evo(strict off)",
+  "metric_direction": "diff = no_evo - ga (positive means no_evo larger)",
+  "bootstrap_replicates": 50000,
+  "results_by_difficulty": {
+    "easy": {
+      "n": 10,
+      "test": "sign_test_exact",
+      "makespan_diff_noevo_minus_ga": {
+        "mean": 0.31920000000000004,
+        "median": 0.0,
+        "bootstrap95_ci": [
+          0.0,
+          0.9451999999999998
+        ],
+        "p_value": 0.5,
+        "cohens_d_paired": 0.3231401647638437
+      },
+      "total_wall_diff_noevo_minus_ga": {
+        "mean": -3.7549944666006922,
+        "median": -3.784421183499944,
+        "bootstrap95_ci": [
+          -4.238495725870179,
+          -3.257306506300665
+        ],
+        "p_value": 0.001953125,
+        "cohens_d_paired": -4.49698291234676
+      },
+      "success_rate": {
+        "ga": 1.0,
+        "no_evo": 1.0
+      }
+    },
+    "medium": {
+      "n": 10,
+      "test": "sign_test_exact",
+      "makespan_diff_noevo_minus_ga": {
+        "mean": -2.6646,
+        "median": -2.353999999999999,
+        "bootstrap95_ci": [
+          -3.1656000000000004,
+          -2.3322000000000003
+        ],
+        "p_value": 0.001953125,
+        "cohens_d_paired": -3.372002492809294
+      },
+      "total_wall_diff_noevo_minus_ga": {
+        "mean": -49.52234536629912,
+        "median": -48.30706893950082,
+        "bootstrap95_ci": [
+          -51.53705553336418,
+          -47.611536063316905
+        ],
+        "p_value": 0.001953125,
+        "cohens_d_paired": -14.717378824252389
+      },
+      "success_rate": {
+        "ga": 1.0,
+        "no_evo": 1.0
+      }
+    },
+    "hard": {
+      "n": 10,
+      "test": "sign_test_exact",
+      "makespan_diff_noevo_minus_ga": {
+        "mean": 2.409399999999999,
+        "median": 1.9420000000000002,
+        "bootstrap95_ci": [
+          1.9119999999999997,
+          3.1259999999999986
+        ],
+        "p_value": 0.001953125,
+        "cohens_d_paired": 2.3555959607990897
+      },
+      "total_wall_diff_noevo_minus_ga": {
+        "mean": -34.98377195950034,
+        "median": -35.91294900050161,
+        "bootstrap95_ci": [
+          -36.65384216739289,
+          -33.089547138500166
+        ],
+        "p_value": 0.001953125,
+        "cohens_d_paired": -11.421938958320732
+      },
+      "success_rate": {
+        "ga": 1.0,
+        "no_evo": 1.0
+      }
+    }
+  }
+}
